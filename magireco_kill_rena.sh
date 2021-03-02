@@ -1,5 +1,20 @@
 #!/system/bin/sh
 
+#Author: segfault
+#https://space.bilibili.com/15209122
+#bitcoin:bc1qfmale9twus34w9cntulmm9d23xy89gh6d7dx3e
+
+#Support character selection - difficulty and AP cost
+POINT_DIFFICULTY_BG_BROWN=344,572
+RGB_DEC_DIFFICULTY_BG_BROWN=178,135,80
+
+POINT_AP_COST_BG_BROWN=344,626
+RGB_DEC_AP_COST_BG_BROWN=178,135,80
+
+POINT_DIFFICULTY_AP_COST_SEAM_WHITE=344,599
+RGB_DEC_DIFFICULTY_AP_COST_SEAM_WHITE=245,245,245
+
+
 #Mutually following player on 3rd slot
 POINT_RIGHT_EDGE_PURPLE=1864,811
 RGB_DEC_RIGHT_EDGE_PURPLE=115,99,160
@@ -308,21 +323,43 @@ STATUS="SUPPORT_CHARA_SEL"
 LAST_STATUS=""
 STUCK_COUNT=0
 CYCLE=0
-STUCK_SINCE_UNIX=$(date +%s)
-if [[ "$1" != "" ]];then AP=$1; fi
+START_SINCE_UNIX=$(date +%s)
+STUCK_SINCE_UNIX=${START_SINCE_UNIX}
+
+if [[ "${AP_NO_WASTE}" == "true" ]] || [[ "${AP_NO_WASTE}" == "1" ]];
+then
+  AP_NO_WASTE=1
+else
+  AP_NO_WASTE=0
+fi
+READY_TO_TAKE_RED_AP_DRUG=0
+
+TAKING_GREEN_AP_DRUG=0
+TAKING_RED_AP_DRUG=0
+GREEN_AP_DRUG_CONSUMED=0
+RED_AP_DRUG_CONSUMED=0
+if [[ "$1" != "" ]];then AP_TARGET=$1; fi
 
 while true; do
   echo -ne "\n" >&2
-  if (( AP > 0 ));
+  echo -ne "CYCLE=${CYCLE} CONSUMED_AP=$((CYCLE*3))\nSTATUS=${STATUS}\n" >&2
+  echo -ne "Consumed AP drugs:\n  Green: ${GREEN_AP_DRUG_CONSUMED}\n  Red:   ${RED_AP_DRUG_CONSUMED}\n" >&2
+  if (( AP_TARGET > 0 ));
   then
-    echo -ne "AP=${AP} " >&2
+    echo -ne "AP_TARGET=${AP_TARGET} REMAINING_AP=$((AP_TARGET-CYCLE*3))\n" >&2
   fi
-  echo "CYCLE=${CYCLE} STATUS=${STATUS}" >&2
+
+  CURRENT_UNIX=$(date +%s)
+  ELAPSED_SEC_TOTAL=$((CURRENT_UNIX - START_SINCE_UNIX))
+  ELAPSED_HR=$((ELAPSED_SEC_TOTAL / 3600))
+  ELAPSED_MIN=$(((ELAPSED_SEC_TOTAL % 3600) / 60))
+  ELAPSED_SEC=$((ELAPSED_SEC_TOTAL % 60))
+  echo -ne "Elapsed time: ${ELAPSED_HR}:${ELAPSED_MIN}:${ELAPSED_SEC}\n" >&2
+
   if [[ "${STATUS}" == "${LAST_STATUS}" ]];
   then
     ((STUCK_COUNT++))
-    CURRENT_UNIX=$(date +%s)
-    if (( CURRENT_UNIX - STUCK_SINCE_UNIX > 300 ));
+    if (( CURRENT_UNIX - STUCK_SINCE_UNIX > 900 ));
     then
       input keyevent HOME
       break
@@ -336,42 +373,48 @@ while true; do
   capture_screen
   if [[ "${STATUS}" == "SUPPORT_CHARA_SEL" ]];
   then
-    if test_point ${POINT_RIGHT_EDGE_PURPLE} 0 ${RGB_DEC_RIGHT_EDGE_PURPLE} && \
-       test_point ${POINT_FOLLOWING_PINK} 0 ${RGB_DEC_FOLLOWING_PINK} && \
-       test_point ${POINT_FOLLOWING_WHITE} 0 ${RGB_DEC_FOLLOWING_WHITE} && \
-       test_point ${POINT_FOLLOWER_BLUE} 0 ${RGB_DEC_FOLLOWER_BLUE} && \
-       test_point ${POINT_FOLLOWER_WHITE} 0 ${RGB_DEC_FOLLOWER_WHITE};then
-      #Mutually following player on 3rd slot
-      tap_screen_shifted 1600 900
-      STATUS="WAIT_FOR_CONFIRM_START"
-    elif test_point ${POINT_RIGHT_EDGE_PURPLE} -244 ${RGB_DEC_RIGHT_EDGE_PURPLE} && \
-         test_point ${POINT_FOLLOWING_PINK} -244 ${RGB_DEC_FOLLOWING_PINK} && \
-         test_point ${POINT_FOLLOWING_WHITE} -244 ${RGB_DEC_FOLLOWING_WHITE} && \
-         test_point ${POINT_FOLLOWER_BLUE} -244 ${RGB_DEC_FOLLOWER_BLUE} && \
-         test_point ${POINT_FOLLOWER_WHITE} -244 ${RGB_DEC_FOLLOWER_WHITE};
+    if test_point ${POINT_DIFFICULTY_BG_BROWN} 0 ${RGB_DEC_DIFFICULTY_BG_BROWN} 12 && \
+       test_point ${POINT_AP_COST_BG_BROWN} 0 ${RGB_DEC_AP_COST_BG_BROWN} 12 && \
+       test_point ${POINT_DIFFICULTY_AP_COST_SEAM_WHITE} 0 ${RGB_DEC_DIFFICULTY_AP_COST_SEAM_WHITE} 12 ;
     then
-      #Mutually following player on 2nd slot
-      tap_screen_shifted 1600 $((900-244))
-      STATUS="WAIT_FOR_CONFIRM_START"
-    elif test_point ${POINT_RIGHT_EDGE_PINK} 244 ${RGB_DEC_RIGHT_EDGE_PINK};
-    then
-      #NPC on 2nd slot
-      tap_screen_shifted 1600 $((900-244))
-      STATUS="WAIT_FOR_CONFIRM_START"
-    elif test_point ${POINT_RIGHT_EDGE_PINK} 0 ${RGB_DEC_RIGHT_EDGE_PINK};
-    then
-      #NPC on 1st slot
-      tap_screen_shifted 1600 $((900-244-244))
-      STATUS="WAIT_FOR_CONFIRM_START"
-    elif test_point ${POINT_RIGHT_EDGE_PURPLE} -488 ${RGB_DEC_RIGHT_EDGE_PURPLE} && \
-         test_point ${POINT_FOLLOWING_PINK} -488 ${RGB_DEC_FOLLOWING_PINK} && \
-         test_point ${POINT_FOLLOWING_WHITE} -488 ${RGB_DEC_FOLLOWING_WHITE} && \
-         test_point ${POINT_FOLLOWER_BLUE} -488 ${RGB_DEC_FOLLOWER_BLUE} && \
-         test_point ${POINT_FOLLOWER_WHITE} -488 ${RGB_DEC_FOLLOWER_WHITE};
-    then
-      #Mutually following player on 1st slot
-      tap_screen_shifted 1600 $((900-244-244))
-      STATUS="WAIT_FOR_CONFIRM_START"
+      if test_point ${POINT_RIGHT_EDGE_PURPLE} 0 ${RGB_DEC_RIGHT_EDGE_PURPLE} 12 && \
+         test_point ${POINT_FOLLOWING_PINK} 0 ${RGB_DEC_FOLLOWING_PINK} 12 && \
+         test_point ${POINT_FOLLOWING_WHITE} 0 ${RGB_DEC_FOLLOWING_WHITE} 12 && \
+         test_point ${POINT_FOLLOWER_BLUE} 0 ${RGB_DEC_FOLLOWER_BLUE} 12 && \
+         test_point ${POINT_FOLLOWER_WHITE} 0 ${RGB_DEC_FOLLOWER_WHITE} 12 ;
+      then
+        #Mutually following player on 3rd slot
+        tap_screen_shifted 1600 900
+        STATUS="WAIT_FOR_CONFIRM_START"
+      elif test_point ${POINT_RIGHT_EDGE_PURPLE} -244 ${RGB_DEC_RIGHT_EDGE_PURPLE} 12 && \
+           test_point ${POINT_FOLLOWING_PINK} -244 ${RGB_DEC_FOLLOWING_PINK} 12 && \
+           test_point ${POINT_FOLLOWING_WHITE} -244 ${RGB_DEC_FOLLOWING_WHITE} 12 && \
+           test_point ${POINT_FOLLOWER_BLUE} -244 ${RGB_DEC_FOLLOWER_BLUE} 12 && \
+           test_point ${POINT_FOLLOWER_WHITE} -244 ${RGB_DEC_FOLLOWER_WHITE} 12 ;
+      then
+        #Mutually following player on 2nd slot
+        tap_screen_shifted 1600 $((900-244))
+        STATUS="WAIT_FOR_CONFIRM_START"
+      elif test_point ${POINT_RIGHT_EDGE_PINK} 244 ${RGB_DEC_RIGHT_EDGE_PINK} 12 ;
+      then
+        #NPC on 2nd slot
+        tap_screen_shifted 1600 $((900-244))
+        STATUS="WAIT_FOR_CONFIRM_START"
+      elif test_point ${POINT_RIGHT_EDGE_PINK} 0 ${RGB_DEC_RIGHT_EDGE_PINK} 12 ;
+      then
+        #NPC on 1st slot
+        tap_screen_shifted 1600 $((900-244-244))
+        STATUS="WAIT_FOR_CONFIRM_START"
+      elif test_point ${POINT_RIGHT_EDGE_PURPLE} -488 ${RGB_DEC_RIGHT_EDGE_PURPLE} 12 && \
+           test_point ${POINT_FOLLOWING_PINK} -488 ${RGB_DEC_FOLLOWING_PINK} 12 && \
+           test_point ${POINT_FOLLOWING_WHITE} -488 ${RGB_DEC_FOLLOWING_WHITE} 12 && \
+           test_point ${POINT_FOLLOWER_BLUE} -488 ${RGB_DEC_FOLLOWER_BLUE} 12 && \
+           test_point ${POINT_FOLLOWER_WHITE} -488 ${RGB_DEC_FOLLOWER_WHITE} 12 ;
+      then
+        #Mutually following player on 1st slot
+        tap_screen_shifted 1600 $((900-244-244))
+        STATUS="WAIT_FOR_CONFIRM_START"
+      fi
     fi
   elif [[ "${STATUS}" == "WAIT_FOR_CONFIRM_START" ]];
   then
@@ -379,18 +422,18 @@ while true; do
     then
       prevent_overheat
     fi
-    if test_point ${POINT_START_BUTTON_RIGHT_EDGE_YELLOW} 0 ${RGB_DEC_START_BUTTON_RIGHT_EDGE_YELLOW} 2 && \
-       test_point ${POINT_START_BUTTON_RIGHT_EDGE_PINK} 0 ${RGB_DEC_START_BUTTON_RIGHT_EDGE_PINK} 2 && \
-       test_point ${POINT_START_BUTTON_CENTER_WHITE} 0 ${RGB_DEC_START_BUTTON_CENTER_WHITE} 2;
+    if test_point ${POINT_START_BUTTON_RIGHT_EDGE_YELLOW} 0 ${RGB_DEC_START_BUTTON_RIGHT_EDGE_YELLOW} 12 && \
+       test_point ${POINT_START_BUTTON_RIGHT_EDGE_PINK} 0 ${RGB_DEC_START_BUTTON_RIGHT_EDGE_PINK} 12 && \
+       test_point ${POINT_START_BUTTON_CENTER_WHITE} 0 ${RGB_DEC_START_BUTTON_CENTER_WHITE} 12 ;
     then
       CONFIRM_BUTTON_SHOWED=0
       STATUS="CLICKING_CONFIRM_BUTTON"
     fi
   elif [[ "${STATUS}" == "CLICKING_CONFIRM_BUTTON" ]];
   then
-    if test_point ${POINT_START_BUTTON_RIGHT_EDGE_YELLOW} 0 ${RGB_DEC_START_BUTTON_RIGHT_EDGE_YELLOW} 2 && \
-       test_point ${POINT_START_BUTTON_RIGHT_EDGE_PINK} 0 ${RGB_DEC_START_BUTTON_RIGHT_EDGE_PINK} 2 && \
-       test_point ${POINT_START_BUTTON_CENTER_WHITE} 0 ${RGB_DEC_START_BUTTON_CENTER_WHITE} 2;
+    if test_point ${POINT_START_BUTTON_RIGHT_EDGE_YELLOW} 0 ${RGB_DEC_START_BUTTON_RIGHT_EDGE_YELLOW} 12 && \
+       test_point ${POINT_START_BUTTON_RIGHT_EDGE_PINK} 0 ${RGB_DEC_START_BUTTON_RIGHT_EDGE_PINK} 12 && \
+       test_point ${POINT_START_BUTTON_CENTER_WHITE} 0 ${RGB_DEC_START_BUTTON_CENTER_WHITE} 12 ;
     then
       ((CONFIRM_BUTTON_SHOWED++))
       if ((CONFIRM_BUTTON_SHOWED==1)) || ((CONFIRM_BUTTON_SHOWED>=5));
@@ -409,47 +452,47 @@ while true; do
   then
     if test_point ${POINT_PLAYER_LV_UP_CAPTION_BROWN} 0 ${RGB_DEC_PLAYER_LV_UP_CAPTION_BROWN} 16 && \
        test_point ${POINT_PLAYER_LV_UP_LETTER_B_PURPLE} 0 ${RGB_DEC_PLAYER_LV_UP_LETTER_B_PURPLE} 16 && \
-       test_point ${POINT_PLAYER_LV_UP_BUTTON_TEXT_WHITE} 0 ${RGB_DEC_PLAYER_LV_UP_BUTTON_TEXT_WHITE} 2;
+       test_point ${POINT_PLAYER_LV_UP_BUTTON_TEXT_WHITE} 0 ${RGB_DEC_PLAYER_LV_UP_BUTTON_TEXT_WHITE} 12 ;
     then
       echo "PLAYER LEVEL UP" >&2
       STATUS="PLAYER_LEVEL_UP"
       continue
     fi
-    if test_point ${POINT_LEVEL_UP_LEFT_PINK} 0 ${RGB_DEC_LEVEL_UP_LEFT_PINK} 2 && \
-       test_point ${POINT_LEVEL_UP_TOP_PINK} 0 ${RGB_DEC_LEVEL_UP_TOP_PINK} 2 && \
-       test_point ${POINT_LEVEL_UP_BOTTOM_PINK} 0 ${RGB_DEC_LEVEL_UP_BOTTOM_PINK} 2;
+    if test_point ${POINT_LEVEL_UP_LEFT_PINK} 0 ${RGB_DEC_LEVEL_UP_LEFT_PINK} 12 && \
+       test_point ${POINT_LEVEL_UP_TOP_PINK} 0 ${RGB_DEC_LEVEL_UP_TOP_PINK} 12 && \
+       test_point ${POINT_LEVEL_UP_BOTTOM_PINK} 0 ${RGB_DEC_LEVEL_UP_BOTTOM_PINK} 12 ;
     then
       echo "LEVEL UP" >&2
       STATUS="LEVEL_UP"
       continue
     fi
-    if test_point ${POINT_BATTLE_CLEAR_LEFT_BROWN} 0 ${RGB_DEC_BATTLE_CLEAR_LEFT_BROWN} && \
-       test_point ${POINT_BATTLE_CLEAR_CENTER_WHITE} 0 ${RGB_DEC_BATTLE_CLEAR_CENTER_WHITE} && \
-       test_point ${POINT_BATTLE_CLEAR_CENTER_BROWN} 0 ${RGB_DEC_BATTLE_CLEAR_CENTER_BROWN} && \
+    if test_point ${POINT_BATTLE_CLEAR_LEFT_BROWN} 0 ${RGB_DEC_BATTLE_CLEAR_LEFT_BROWN} 12 && \
+       test_point ${POINT_BATTLE_CLEAR_CENTER_WHITE} 0 ${RGB_DEC_BATTLE_CLEAR_CENTER_WHITE} 12 && \
+       test_point ${POINT_BATTLE_CLEAR_CENTER_BROWN} 0 ${RGB_DEC_BATTLE_CLEAR_CENTER_BROWN} 12 && \
        test_point ${POINT_BATTLE_CLEAR_LETTER_T_PINK} 0 ${RGB_DEC_BATTLE_CLEAR_LETTER_T_PINK} 90 && \
-       test_point ${POINT_BATTLE_CLEAR_LETTER_N_PINK} 0 ${RGB_DEC_BATTLE_CLEAR_LETTER_N_PINK} 90;
+       test_point ${POINT_BATTLE_CLEAR_LETTER_N_PINK} 0 ${RGB_DEC_BATTLE_CLEAR_LETTER_N_PINK} 90 ;
     then
       STATUS="BATTLE_CLEAR"
     fi
   elif [[ "${STATUS}" == "LEVEL_UP" ]];
   then
-    if test_point ${POINT_LEVEL_UP_LEFT_PINK} 0 ${RGB_DEC_LEVEL_UP_LEFT_PINK} 2 && \
-       test_point ${POINT_LEVEL_UP_TOP_PINK} 0 ${RGB_DEC_LEVEL_UP_TOP_PINK} 2 && \
-       test_point ${POINT_LEVEL_UP_BOTTOM_PINK} 0 ${RGB_DEC_LEVEL_UP_BOTTOM_PINK} 2;
+    if test_point ${POINT_LEVEL_UP_LEFT_PINK} 0 ${RGB_DEC_LEVEL_UP_LEFT_PINK} 12 && \
+       test_point ${POINT_LEVEL_UP_TOP_PINK} 0 ${RGB_DEC_LEVEL_UP_TOP_PINK} 12 && \
+       test_point ${POINT_LEVEL_UP_BOTTOM_PINK} 0 ${RGB_DEC_LEVEL_UP_BOTTOM_PINK} 12 ;
     then
       tap_screen_shifted 33 $((1080-34))
-    elif test_point ${POINT_BATTLE_CLEAR_LEFT_BROWN} 0 ${RGB_DEC_BATTLE_CLEAR_LEFT_BROWN} && \
-         test_point ${POINT_BATTLE_CLEAR_CENTER_WHITE} 0 ${RGB_DEC_BATTLE_CLEAR_CENTER_WHITE} && \
-         test_point ${POINT_BATTLE_CLEAR_CENTER_BROWN} 0 ${RGB_DEC_BATTLE_CLEAR_CENTER_BROWN};
+    elif test_point ${POINT_BATTLE_CLEAR_LEFT_BROWN} 0 ${RGB_DEC_BATTLE_CLEAR_LEFT_BROWN} 12 && \
+         test_point ${POINT_BATTLE_CLEAR_CENTER_WHITE} 0 ${RGB_DEC_BATTLE_CLEAR_CENTER_WHITE} 12 && \
+         test_point ${POINT_BATTLE_CLEAR_CENTER_BROWN} 0 ${RGB_DEC_BATTLE_CLEAR_CENTER_BROWN} 12 ;
     then
-      if test_point ${POINT_RESTART_BUTTON_TEXT_WHITE} 0 ${RGB_DEC_RESTART_BUTTON_TEXT_WHITE} && \
-         test_point ${POINT_RESTART_BUTTON_LEFT_YELLOW} 0 ${RGB_DEC_RESTART_BUTTON_LEFT_YELLOW} 2 && \
-         test_point ${POINT_RESTART_BUTTON_RIGHT_YELLOW} 0 ${RGB_DEC_RESTART_BUTTON_RIGHT_YELLOW} 2;
+      if test_point ${POINT_RESTART_BUTTON_TEXT_WHITE} 0 ${RGB_DEC_RESTART_BUTTON_TEXT_WHITE} 12 && \
+         test_point ${POINT_RESTART_BUTTON_LEFT_YELLOW} 0 ${RGB_DEC_RESTART_BUTTON_LEFT_YELLOW} 12 && \
+         test_point ${POINT_RESTART_BUTTON_RIGHT_YELLOW} 0 ${RGB_DEC_RESTART_BUTTON_RIGHT_YELLOW} 12 ;
       then
         STATUS="CLICK_RESTART"
         RESTART_BUTTON_SHOWED=0
       elif test_point ${POINT_BATTLE_CLEAR_LETTER_T_PINK} 0 ${RGB_DEC_BATTLE_CLEAR_LETTER_T_PINK} 90 && \
-           test_point ${POINT_BATTLE_CLEAR_LETTER_N_PINK} 0 ${RGB_DEC_BATTLE_CLEAR_LETTER_N_PINK} 90;
+           test_point ${POINT_BATTLE_CLEAR_LETTER_N_PINK} 0 ${RGB_DEC_BATTLE_CLEAR_LETTER_N_PINK} 90 ;
       then
         STATUS="BATTLE_CLEAR"
       fi
@@ -458,22 +501,22 @@ while true; do
   then
     if test_point ${POINT_PLAYER_LV_UP_CAPTION_BROWN} 0 ${RGB_DEC_PLAYER_LV_UP_CAPTION_BROWN} 16 && \
        test_point ${POINT_PLAYER_LV_UP_LETTER_B_PURPLE} 0 ${RGB_DEC_PLAYER_LV_UP_LETTER_B_PURPLE} 16 && \
-       test_point ${POINT_PLAYER_LV_UP_BUTTON_TEXT_WHITE} 0 ${RGB_DEC_PLAYER_LV_UP_BUTTON_TEXT_WHITE} 2;
+       test_point ${POINT_PLAYER_LV_UP_BUTTON_TEXT_WHITE} 0 ${RGB_DEC_PLAYER_LV_UP_BUTTON_TEXT_WHITE} 12 ;
     then
       tap_screen_shifted ${POINT_PLAYER_LV_UP_BUTTON_TEXT_WHITE}
-    elif test_point ${POINT_BATTLE_CLEAR_LEFT_BROWN} 0 ${RGB_DEC_BATTLE_CLEAR_LEFT_BROWN} && \
-         test_point ${POINT_BATTLE_CLEAR_CENTER_WHITE} 0 ${RGB_DEC_BATTLE_CLEAR_CENTER_WHITE} && \
-         test_point ${POINT_BATTLE_CLEAR_CENTER_BROWN} 0 ${RGB_DEC_BATTLE_CLEAR_CENTER_BROWN};
+    elif test_point ${POINT_BATTLE_CLEAR_LEFT_BROWN} 0 ${RGB_DEC_BATTLE_CLEAR_LEFT_BROWN} 12 && \
+         test_point ${POINT_BATTLE_CLEAR_CENTER_WHITE} 0 ${RGB_DEC_BATTLE_CLEAR_CENTER_WHITE} 12 && \
+         test_point ${POINT_BATTLE_CLEAR_CENTER_BROWN} 0 ${RGB_DEC_BATTLE_CLEAR_CENTER_BROWN} 12 ;
     then
-      if test_point ${POINT_RESTART_BUTTON_TEXT_WHITE} 0 ${RGB_DEC_RESTART_BUTTON_TEXT_WHITE} && \
-         test_point ${POINT_RESTART_BUTTON_LEFT_YELLOW} 0 ${RGB_DEC_RESTART_BUTTON_LEFT_YELLOW} 2 && \
-         test_point ${POINT_RESTART_BUTTON_RIGHT_YELLOW} 0 ${RGB_DEC_RESTART_BUTTON_RIGHT_YELLOW} 2;
+      if test_point ${POINT_RESTART_BUTTON_TEXT_WHITE} 0 ${RGB_DEC_RESTART_BUTTON_TEXT_WHITE} 12 && \
+         test_point ${POINT_RESTART_BUTTON_LEFT_YELLOW} 0 ${RGB_DEC_RESTART_BUTTON_LEFT_YELLOW} 12 && \
+         test_point ${POINT_RESTART_BUTTON_RIGHT_YELLOW} 0 ${RGB_DEC_RESTART_BUTTON_RIGHT_YELLOW} 12 ;
       then
         #Shouldn't go there.
         STATUS="CLICK_RESTART"
         RESTART_BUTTON_SHOWED=0
       elif test_point ${POINT_BATTLE_CLEAR_LETTER_T_PINK} 0 ${RGB_DEC_BATTLE_CLEAR_LETTER_T_PINK} 90 && \
-           test_point ${POINT_BATTLE_CLEAR_LETTER_N_PINK} 0 ${RGB_DEC_BATTLE_CLEAR_LETTER_N_PINK} 90;
+           test_point ${POINT_BATTLE_CLEAR_LETTER_N_PINK} 0 ${RGB_DEC_BATTLE_CLEAR_LETTER_N_PINK} 90 ;
       then
         #Normal situation, go back to battle clear screen.
         STATUS="BATTLE_CLEAR"
@@ -483,32 +526,38 @@ while true; do
   then
     if test_point ${POINT_PLAYER_LV_UP_CAPTION_BROWN} 0 ${RGB_DEC_PLAYER_LV_UP_CAPTION_BROWN} 16 && \
        test_point ${POINT_PLAYER_LV_UP_LETTER_B_PURPLE} 0 ${RGB_DEC_PLAYER_LV_UP_LETTER_B_PURPLE} 16 && \
-       test_point ${POINT_PLAYER_LV_UP_BUTTON_TEXT_WHITE} 0 ${RGB_DEC_PLAYER_LV_UP_BUTTON_TEXT_WHITE} 2;
+       test_point ${POINT_PLAYER_LV_UP_BUTTON_TEXT_WHITE} 0 ${RGB_DEC_PLAYER_LV_UP_BUTTON_TEXT_WHITE} 12 ;
     then
       echo "PLAYER LEVEL UP" >&2
       STATUS="PLAYER_LEVEL_UP"
       continue
     fi
-    if test_point ${POINT_LEVEL_UP_LEFT_PINK} 0 ${RGB_DEC_LEVEL_UP_LEFT_PINK} 2 && \
-       test_point ${POINT_LEVEL_UP_TOP_PINK} 0 ${RGB_DEC_LEVEL_UP_TOP_PINK} 2 && \
-       test_point ${POINT_LEVEL_UP_BOTTOM_PINK} 0 ${RGB_DEC_LEVEL_UP_BOTTOM_PINK} 2;
+    if test_point ${POINT_LEVEL_UP_LEFT_PINK} 0 ${RGB_DEC_LEVEL_UP_LEFT_PINK} 12 && \
+       test_point ${POINT_LEVEL_UP_TOP_PINK} 0 ${RGB_DEC_LEVEL_UP_TOP_PINK} 12 && \
+       test_point ${POINT_LEVEL_UP_BOTTOM_PINK} 0 ${RGB_DEC_LEVEL_UP_BOTTOM_PINK} 12 ;
     then
       echo "LEVEL UP" >&2
       STATUS="LEVEL_UP"
       continue
     fi
-    if test_point ${POINT_BATTLE_CLEAR_LEFT_BROWN} 0 ${RGB_DEC_BATTLE_CLEAR_LEFT_BROWN} && \
-       test_point ${POINT_BATTLE_CLEAR_CENTER_WHITE} 0 ${RGB_DEC_BATTLE_CLEAR_CENTER_WHITE} && \
-       test_point ${POINT_BATTLE_CLEAR_CENTER_BROWN} 0 ${RGB_DEC_BATTLE_CLEAR_CENTER_BROWN};
+    if test_point ${POINT_BATTLE_CLEAR_LEFT_BROWN} 0 ${RGB_DEC_BATTLE_CLEAR_LEFT_BROWN} 12 && \
+       test_point ${POINT_BATTLE_CLEAR_CENTER_WHITE} 0 ${RGB_DEC_BATTLE_CLEAR_CENTER_WHITE} 12 && \
+       test_point ${POINT_BATTLE_CLEAR_CENTER_BROWN} 0 ${RGB_DEC_BATTLE_CLEAR_CENTER_BROWN} 12 ;
     then
-      if test_point ${POINT_RESTART_BUTTON_TEXT_WHITE} 0 ${RGB_DEC_RESTART_BUTTON_TEXT_WHITE} && \
-         test_point ${POINT_RESTART_BUTTON_LEFT_YELLOW} 0 ${RGB_DEC_RESTART_BUTTON_LEFT_YELLOW} 2 && \
-         test_point ${POINT_RESTART_BUTTON_RIGHT_YELLOW} 0 ${RGB_DEC_RESTART_BUTTON_RIGHT_YELLOW} 2;
+      if (( AP_TARGET > 0 ));then
+        if (( CYCLE * 3 >= AP_TARGET ));then
+          input keyevent HOME
+          break
+        fi
+      fi
+      if test_point ${POINT_RESTART_BUTTON_TEXT_WHITE} 0 ${RGB_DEC_RESTART_BUTTON_TEXT_WHITE} 12 && \
+         test_point ${POINT_RESTART_BUTTON_LEFT_YELLOW} 0 ${RGB_DEC_RESTART_BUTTON_LEFT_YELLOW} 12 && \
+         test_point ${POINT_RESTART_BUTTON_RIGHT_YELLOW} 0 ${RGB_DEC_RESTART_BUTTON_RIGHT_YELLOW} 12 ;
       then
         STATUS="CLICK_RESTART"
         RESTART_BUTTON_SHOWED=0
       else
-        if test_point ${POINT_BATTLE_CLEAR_EXP_BAR_BROWN} 0 ${RGB_DEC_BATTLE_CLEAR_EXP_BAR_BROWN} 16;
+        if test_point ${POINT_BATTLE_CLEAR_EXP_BAR_BROWN} 0 ${RGB_DEC_BATTLE_CLEAR_EXP_BAR_BROWN} 16 ;
         then
           ((BATTLE_CLEAR_EXP_BAR_SHOWED++))
           if ((BATTLE_CLEAR_EXP_BAR_SHOWED%20==1));
@@ -528,23 +577,23 @@ while true; do
   then
     if test_point ${POINT_PLAYER_LV_UP_CAPTION_BROWN} 0 ${RGB_DEC_PLAYER_LV_UP_CAPTION_BROWN} 16 && \
        test_point ${POINT_PLAYER_LV_UP_LETTER_B_PURPLE} 0 ${RGB_DEC_PLAYER_LV_UP_LETTER_B_PURPLE} 16 && \
-       test_point ${POINT_PLAYER_LV_UP_BUTTON_TEXT_WHITE} 0 ${RGB_DEC_PLAYER_LV_UP_BUTTON_TEXT_WHITE} 2;
+       test_point ${POINT_PLAYER_LV_UP_BUTTON_TEXT_WHITE} 0 ${RGB_DEC_PLAYER_LV_UP_BUTTON_TEXT_WHITE} 12 ;
     then
       echo "PLAYER LEVEL UP" >&2
       STATUS="PLAYER_LEVEL_UP"
       continue
     fi
-    if test_point ${POINT_LEVEL_UP_LEFT_PINK} 0 ${RGB_DEC_LEVEL_UP_LEFT_PINK} 2 && \
-       test_point ${POINT_LEVEL_UP_TOP_PINK} 0 ${RGB_DEC_LEVEL_UP_TOP_PINK} 2 && \
-       test_point ${POINT_LEVEL_UP_BOTTOM_PINK} 0 ${RGB_DEC_LEVEL_UP_BOTTOM_PINK} 2;
+    if test_point ${POINT_LEVEL_UP_LEFT_PINK} 0 ${RGB_DEC_LEVEL_UP_LEFT_PINK} 12 && \
+       test_point ${POINT_LEVEL_UP_TOP_PINK} 0 ${RGB_DEC_LEVEL_UP_TOP_PINK} 12 && \
+       test_point ${POINT_LEVEL_UP_BOTTOM_PINK} 0 ${RGB_DEC_LEVEL_UP_BOTTOM_PINK} 12 ;
     then
       echo "LEVEL UP" >&2
       STATUS="LEVEL_UP"
       continue
     fi
-    if test_point ${POINT_RESTART_BUTTON_TEXT_WHITE} 0 ${RGB_DEC_RESTART_BUTTON_TEXT_WHITE} && \
-       test_point ${POINT_RESTART_BUTTON_LEFT_YELLOW} 0 ${RGB_DEC_RESTART_BUTTON_LEFT_YELLOW} 2 && \
-       test_point ${POINT_RESTART_BUTTON_RIGHT_YELLOW} 0 ${RGB_DEC_RESTART_BUTTON_RIGHT_YELLOW} 2;
+    if test_point ${POINT_RESTART_BUTTON_TEXT_WHITE} 0 ${RGB_DEC_RESTART_BUTTON_TEXT_WHITE} 12 && \
+       test_point ${POINT_RESTART_BUTTON_LEFT_YELLOW} 0 ${RGB_DEC_RESTART_BUTTON_LEFT_YELLOW} 12 && \
+       test_point ${POINT_RESTART_BUTTON_RIGHT_YELLOW} 0 ${RGB_DEC_RESTART_BUTTON_RIGHT_YELLOW} 12 ;
     then
       STATUS="CLICK_RESTART"
       RESTART_BUTTON_SHOWED=0
@@ -563,26 +612,53 @@ while true; do
     if test_point ${POINT_STORY_PLACE_TEXT_PURPLE} 0 ${RGB_DEC_STORY_PLACE_TEXT_PURPLE} 16 && \
        test_point ${POINT_STORY_IROHA_TEXT_GREY} 0 ${RGB_DEC_STORY_IROHA_TEXT_GREY} 16 && \
        test_point ${POINT_BATTLE_MENU_ENTRY_PURPLE} 0 ${RGB_DEC_BATTLE_MENU_ENTRY_PURPLE} 16 && \
-       test_point ${POINT_BATTLE_MENU_ENTRY_TEXT_WHITE} 0 ${RGB_DEC_BATTLE_MENU_ENTRY_TEXT_WHITE} 2 && \
-       test_point ${POINT_AP_REFILL_BUTTON_WHITE} 0 ${RGB_DEC_AP_REFILL_BUTTON_WHITE} 2 2;
+       test_point ${POINT_BATTLE_MENU_ENTRY_TEXT_WHITE} 0 ${RGB_DEC_BATTLE_MENU_ENTRY_TEXT_WHITE} 12 && \
+       test_point ${POINT_AP_REFILL_BUTTON_WHITE} 0 ${RGB_DEC_AP_REFILL_BUTTON_WHITE} 12 ;
     then
       tap_screen_shifted ${POINT_AP_REFILL_BUTTON_WHITE}
       STATUS="AP_REFILL"
     fi
+  elif [[ "${STATUS}" == "WAIT_FOR_AP_AUTO_REFILL" ]];
+  then
+    if test_point ${POINT_AP_REFILL_CLOSE_WINDOW_CROSS_SIGN_BROWN} 0 ${RGB_DEC_AP_REFILL_CLOSE_WINDOW_CROSS_SIGN_BROWN} 16 && \
+       test_point ${POINT_AP_REFILL_CAPTION_LETTER_P_WHITE} 0 ${RGB_DEC_AP_REFILL_CAPTION_LETTER_P_WHITE} 12 && \
+       test_point ${POINT_AP_REFILL_CAPTION_BG_BROWN} 0 ${RGB_DEC_AP_REFILL_CAPTION_BG_BROWN} 16 ;
+    then
+      #Still not auto-refilled to at least 3 AP
+      STATUS="CLOSE_WINDOW_WITHOUT_REFILLING_AP"
+    elif test_point ${POINT_DIFFICULTY_BG_BROWN} 0 ${RGB_DEC_DIFFICULTY_BG_BROWN} 12 && \
+         test_point ${POINT_AP_COST_BG_BROWN} 0 ${RGB_DEC_AP_COST_BG_BROWN} 12 && \
+         test_point ${POINT_DIFFICULTY_AP_COST_SEAM_WHITE} 0 ${RGB_DEC_DIFFICULTY_AP_COST_SEAM_WHITE} 12 && \
+         test_point ${POINT_RIGHT_EDGE_PINK} 0 ${RGB_DEC_RIGHT_EDGE_PINK} 12 ;
+    then
+      #NPC on 1st slot. Should be the battle selection menu of chap.2 sec.1
+      #Auto-refilled to at least 3 AP just now, consume it immediately right after refilling AP
+      tap_screen_shifted ${POINT_AP_REFILL_BUTTON_WHITE}
+      STATUS="AP_REFILL"
+      READY_TO_TAKE_RED_AP_DRUG=1
+    fi
   elif [[ "${STATUS}" == "AP_REFILL" ]];
   then
     if test_point ${POINT_AP_REFILL_CLOSE_WINDOW_CROSS_SIGN_BROWN} 0 ${RGB_DEC_AP_REFILL_CLOSE_WINDOW_CROSS_SIGN_BROWN} 16 && \
-       test_point ${POINT_AP_REFILL_CAPTION_LETTER_P_WHITE} 0 ${RGB_DEC_AP_REFILL_CAPTION_LETTER_P_WHITE} 2 && \
-       test_point ${POINT_AP_REFILL_CAPTION_BG_BROWN} 0 ${RGB_DEC_AP_REFILL_CAPTION_BG_BROWN} 16;
+       test_point ${POINT_AP_REFILL_CAPTION_LETTER_P_WHITE} 0 ${RGB_DEC_AP_REFILL_CAPTION_LETTER_P_WHITE} 12 && \
+       test_point ${POINT_AP_REFILL_CAPTION_BG_BROWN} 0 ${RGB_DEC_AP_REFILL_CAPTION_BG_BROWN} 16 ;
     then
-      if test_point ${POINT_GREEN_AP_DRUG_BUTTON_TEXT} 0 ${RGB_DEC_AP_DRUG_BUTTON_WHITE} 2;
+      if test_point ${POINT_GREEN_AP_DRUG_BUTTON_TEXT} 0 ${RGB_DEC_AP_DRUG_BUTTON_WHITE} 12 ;
       then
         tap_screen_shifted ${POINT_GREEN_AP_DRUG_BUTTON_TEXT}
         STATUS="AP_REFILL_CONFIRM"
-      elif test_point ${POINT_RED_AP_DRUG_BUTTON_TEXT} 0 ${RGB_DEC_AP_DRUG_BUTTON_WHITE} 2;
+        TAKING_GREEN_AP_DRUG=1
+      elif test_point ${POINT_RED_AP_DRUG_BUTTON_TEXT} 0 ${RGB_DEC_AP_DRUG_BUTTON_WHITE} 12 ;
       then
-        tap_screen_shifted ${POINT_RED_AP_DRUG_BUTTON_TEXT}
-        STATUS="AP_REFILL_CONFIRM"
+        if ((READY_TO_TAKE_RED_AP_DRUG || ! AP_NO_WASTE));
+        then
+          tap_screen_shifted ${POINT_RED_AP_DRUG_BUTTON_TEXT}
+          STATUS="AP_REFILL_CONFIRM"
+          TAKING_RED_AP_DRUG=1
+          READY_TO_TAKE_RED_AP_DRUG=0
+        else
+          STATUS="CLOSE_WINDOW_WITHOUT_REFILLING_AP"
+        fi
       else
         echo "AP drug exhausted." >&2
         input keyevent HOME
@@ -592,22 +668,39 @@ while true; do
   elif [[ "${STATUS}" == "AP_REFILL_CONFIRM" ]];
   then
     if test_point ${POINT_AP_REFILL_CONFIRM_CLOSE_WINDOW_CROSS_SIGN_BROWN} 0 ${RGB_DEC_AP_REFILL_CONFIRM_CLOSE_WINDOW_CROSS_SIGN_BROWN} 16 && \
-       test_point ${POINT_AP_REFILL_CONFIRM_CAPTION_TEXT_WHITE} 0 ${RGB_DEC_AP_REFILL_CONFIRM_CAPTION_TEXT_WHITE} 2 && \
+       test_point ${POINT_AP_REFILL_CONFIRM_CAPTION_TEXT_WHITE} 0 ${RGB_DEC_AP_REFILL_CONFIRM_CAPTION_TEXT_WHITE} 12 && \
        test_point ${POINT_AP_REFILL_CONFIRM_CAPTION_BG_BROWN} 0 ${RGB_DEC_AP_REFILL_CONFIRM_CAPTION_BG_BROWN} 16 && \
-       test_point ${POINT_AP_REFILL_CONFIRM_BUTTON_TEXT_WHITE} 0 ${RGB_DEC_AP_REFILL_CONFIRM_BUTTON_TEXT_WHITE} 2;
+       test_point ${POINT_AP_REFILL_CONFIRM_BUTTON_TEXT_WHITE} 0 ${RGB_DEC_AP_REFILL_CONFIRM_BUTTON_TEXT_WHITE} 12 ;
     then
       tap_screen_shifted ${POINT_AP_REFILL_CONFIRM_BUTTON_TEXT_WHITE}
       STATUS="AP_REFILLED"
+      if ((TAKING_GREEN_AP_DRUG != 0));
+      then
+        ((GREEN_AP_DRUG_CONSUMED++))
+        TAKING_GREEN_AP_DRUG=0
+      elif ((TAKING_RED_AP_DRUG != 0));
+      then
+        ((RED_AP_DRUG_CONSUMED++))
+        TAKING_RED_AP_DRUG=0
+      fi
     fi
-  elif [[ "${STATUS}" == "AP_REFILLED" ]];
+  elif [[ "${STATUS}" == "AP_REFILLED" ]] || [[ "${STATUS}" == "CLOSE_WINDOW_WITHOUT_REFILLING_AP" ]];
   then
     #Back to AP refill window again.
     if test_point ${POINT_AP_REFILL_CLOSE_WINDOW_CROSS_SIGN_BROWN} 0 ${RGB_DEC_AP_REFILL_CLOSE_WINDOW_CROSS_SIGN_BROWN} 16 && \
-       test_point ${POINT_AP_REFILL_CAPTION_LETTER_P_WHITE} 0 ${RGB_DEC_AP_REFILL_CAPTION_LETTER_P_WHITE} 2 && \
-       test_point ${POINT_AP_REFILL_CAPTION_BG_BROWN} 0 ${RGB_DEC_AP_REFILL_CAPTION_BG_BROWN} 16;
+       test_point ${POINT_AP_REFILL_CAPTION_LETTER_P_WHITE} 0 ${RGB_DEC_AP_REFILL_CAPTION_LETTER_P_WHITE} 12 && \
+       test_point ${POINT_AP_REFILL_CAPTION_BG_BROWN} 0 ${RGB_DEC_AP_REFILL_CAPTION_BG_BROWN} 16 ;
     then
       tap_screen_shifted ${POINT_AP_REFILL_CLOSE_WINDOW_CROSS_SIGN_BROWN}
-      STATUS="AP_REFILL_WINDOW_CLOSED"
+      if [[ "${STATUS}" == "AP_REFILLED" ]];
+      then
+        STATUS="AP_REFILL_WINDOW_CLOSED"
+      elif [[ "${STATUS}" == "CLOSE_WINDOW_WITHOUT_REFILLING_AP" ]];
+      then
+        sleep 1
+        tap_screen_shifted ${POINT_BATTLE_MENU_ENTRY_TEXT_WHITE}
+        STATUS="WAIT_FOR_AP_AUTO_REFILL"
+      fi
     fi
   elif [[ "${STATUS}" == "AP_REFILL_WINDOW_CLOSED" ]];
   then
@@ -615,34 +708,43 @@ while true; do
     if test_point ${POINT_STORY_PLACE_TEXT_PURPLE} 0 ${RGB_DEC_STORY_PLACE_TEXT_PURPLE} 16 && \
        test_point ${POINT_STORY_IROHA_TEXT_GREY} 0 ${RGB_DEC_STORY_IROHA_TEXT_GREY} 16 && \
        test_point ${POINT_BATTLE_MENU_ENTRY_PURPLE} 0 ${RGB_DEC_BATTLE_MENU_ENTRY_PURPLE} 16 && \
-       test_point ${POINT_BATTLE_MENU_ENTRY_TEXT_WHITE} 0 ${RGB_DEC_BATTLE_MENU_ENTRY_TEXT_WHITE} 2 && \
-       test_point ${POINT_AP_REFILL_BUTTON_WHITE} 0 ${RGB_DEC_AP_REFILL_BUTTON_WHITE} 2 2;
+       test_point ${POINT_BATTLE_MENU_ENTRY_TEXT_WHITE} 0 ${RGB_DEC_BATTLE_MENU_ENTRY_TEXT_WHITE} 12 && \
+       test_point ${POINT_AP_REFILL_BUTTON_WHITE} 0 ${RGB_DEC_AP_REFILL_BUTTON_WHITE} 12 ;
     then
       #chap.2 sec.1 battle.4
       tap_screen_shifted ${POINT_BATTLE_MENU_ENTRY_TEXT_WHITE}
+      STATUS="SUPPORT_CHARA_SEL"
+    elif test_point ${POINT_DIFFICULTY_BG_BROWN} 0 ${RGB_DEC_DIFFICULTY_BG_BROWN} 12 && \
+         test_point ${POINT_AP_COST_BG_BROWN} 0 ${RGB_DEC_AP_COST_BG_BROWN} 12 && \
+         test_point ${POINT_DIFFICULTY_AP_COST_SEAM_WHITE} 0 ${RGB_DEC_DIFFICULTY_AP_COST_SEAM_WHITE} 12 && \
+         test_point ${POINT_RIGHT_EDGE_PINK} 0 ${RGB_DEC_RIGHT_EDGE_PINK} 12 ;
+    then
+      #Already at character selection screen
+      #NPC on 1st slot. Should be the battle selection menu of chap.2 sec.1
+      #Should be the situation that: AP has been auto-refilled to at least 3 AP just now, consume it immediately right after refilling AP
       STATUS="SUPPORT_CHARA_SEL"
     fi
   elif [[ "${STATUS}" == "CLICK_RESTART" ]];
   then
     if test_point ${POINT_PLAYER_LV_UP_CAPTION_BROWN} 0 ${RGB_DEC_PLAYER_LV_UP_CAPTION_BROWN} 16 && \
        test_point ${POINT_PLAYER_LV_UP_LETTER_B_PURPLE} 0 ${RGB_DEC_PLAYER_LV_UP_LETTER_B_PURPLE} 16 && \
-       test_point ${POINT_PLAYER_LV_UP_BUTTON_TEXT_WHITE} 0 ${RGB_DEC_PLAYER_LV_UP_BUTTON_TEXT_WHITE};
+       test_point ${POINT_PLAYER_LV_UP_BUTTON_TEXT_WHITE} 0 ${RGB_DEC_PLAYER_LV_UP_BUTTON_TEXT_WHITE} 12 ;
     then
       echo "PLAYER LEVEL UP" >&2
       STATUS="PLAYER_LEVEL_UP"
       continue
     fi
-    if test_point ${POINT_LEVEL_UP_LEFT_PINK} 0 ${RGB_DEC_LEVEL_UP_LEFT_PINK} 2 && \
-       test_point ${POINT_LEVEL_UP_TOP_PINK} 0 ${RGB_DEC_LEVEL_UP_TOP_PINK} 2 && \
-       test_point ${POINT_LEVEL_UP_BOTTOM_PINK} 0 ${RGB_DEC_LEVEL_UP_BOTTOM_PINK} 2;
+    if test_point ${POINT_LEVEL_UP_LEFT_PINK} 0 ${RGB_DEC_LEVEL_UP_LEFT_PINK} 12 && \
+       test_point ${POINT_LEVEL_UP_TOP_PINK} 0 ${RGB_DEC_LEVEL_UP_TOP_PINK} 12 && \
+       test_point ${POINT_LEVEL_UP_BOTTOM_PINK} 0 ${RGB_DEC_LEVEL_UP_BOTTOM_PINK} 12 ;
     then
       echo "LEVEL UP" >&2
       STATUS="LEVEL_UP"
       continue
     fi
-    if test_point ${POINT_RESTART_BUTTON_TEXT_WHITE} 0 ${RGB_DEC_RESTART_BUTTON_TEXT_WHITE} && \
-       test_point ${POINT_RESTART_BUTTON_LEFT_YELLOW} 0 ${RGB_DEC_RESTART_BUTTON_LEFT_YELLOW} 2 && \
-       test_point ${POINT_RESTART_BUTTON_RIGHT_YELLOW} 0 ${RGB_DEC_RESTART_BUTTON_RIGHT_YELLOW} 2;
+    if test_point ${POINT_RESTART_BUTTON_TEXT_WHITE} 0 ${RGB_DEC_RESTART_BUTTON_TEXT_WHITE} 12 && \
+       test_point ${POINT_RESTART_BUTTON_LEFT_YELLOW} 0 ${RGB_DEC_RESTART_BUTTON_LEFT_YELLOW} 12 && \
+       test_point ${POINT_RESTART_BUTTON_RIGHT_YELLOW} 0 ${RGB_DEC_RESTART_BUTTON_RIGHT_YELLOW} 12 ;
     then
       ((RESTART_BUTTON_SHOWED++))
       if ((RESTART_BUTTON_SHOWED==1)) || ((RESTART_BUTTON_SHOWED>=5));
@@ -657,12 +759,6 @@ while true; do
       fi
     else
       ((CYCLE++))
-      if (( AP > 0 ));then
-        if (( CYCLE * 3 >= AP ));then
-          input keyevent HOME
-          break
-        fi
-      fi
       STATUS="SUPPORT_CHARA_SEL"
     fi
   fi
