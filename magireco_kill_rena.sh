@@ -4,6 +4,8 @@
 #https://space.bilibili.com/15209122
 #bitcoin:bc1qfmale9twus34w9cntulmm9d23xy89gh6d7dx3e
 
+export PATH="/data/local/tmp/rena_killer_bin:${PATH}"
+
 #Support character selection - difficulty and AP cost
 POINT_DIFFICULTY_BG_BROWN=344,572
 RGB_DEC_DIFFICULTY_BG_BROWN=178,135,80
@@ -119,6 +121,7 @@ POINT_GREEN_AP_DRUG_BUTTON_TEXT=413,908
 POINT_RED_AP_DRUG_BUTTON_TEXT=935,908
 RGB_DEC_AP_DRUG_BUTTON_WHITE=255,255,255
 RGB_DEC_AP_DRUG_BUTTON_GREY=191,191,191
+RGB_DEC_AP_DRUG_BUTTON_GREY_HALF=100,100,100
 
 
 POINT_AP_REFILL_CONFIRM_CLOSE_WINDOW_CROSS_SIGN_BROWN=1555,232
@@ -145,27 +148,83 @@ POINT_RESTART_BUTTON_LEFT_YELLOW=1631,996
 RGB_DEC_RESTART_BUTTON_LEFT_YELLOW=252,230,139
 
 POINT_RESTART_BUTTON_RIGHT_YELLOW=1853,996
-RGB_DEC_RESTART_BUTTON_RIGHT_YELLOW=253,234,145
+RGB_DEC_RESTART_BUTTON_RIGHT_YELLOW=253,239,163
 
 
+exit_process()
+{
+  echo "Stopped."
+  echo "Press ENTER to exit."
+  read press_enter_key
+  echo "Press ENTER again to exit."
+  read press_enter_key
+  do_exit_process $1
+}
+
+do_exit_process()
+{
+  echo "Exit now."
+  rmdir /data/local/tmp/tmpfs/magireco/lock
+  exit $1
+}
+
+trap exit_process SIGINT
+trap do_exit_process SIGTERM
+trap do_exit_process SIGQUIT
+trap do_exit_process SIGHUP
+
+#rotate_log()
+#{
+#  if [ -f /data/local/tmp/tmpfs/magireco/log1.txt ];
+#  then
+#    LOG_SIZE=$(stat -c %s /data/local/tmp/tmpfs/magireco/log1.txt)
+#    ((LOG_SIZE > 65536)) && mv /data/local/tmp/tmpfs/magireco/log1.txt /data/local/tmp/tmpfs/magireco/log0.txt
+#  fi
+#}
+
+LOCK_CHECKED=0
 capture_screen()
 {
   if grep -q "^tmpfs /data/local/tmp/tmpfs tmpfs" /proc/mounts;
   then
-    echo "capture_screen: tmpfs mounted." >&2
+    echo "capture_screen: tmpfs mounted."
   else
-    echo "capture_screen: tmpfs not mounted." >&2
-    exit 1
+    echo "capture_screen: tmpfs not mounted, attempt to mount..."
+    mkdir -p /data/local/tmp/tmpfs
+    mount -t tmpfs tmpfs /data/local/tmp/tmpfs || exit_process 1
   fi
   mkdir -p /data/local/tmp/tmpfs/magireco
   if [ ! -d /data/local/tmp/tmpfs/magireco ];
   then
-    echo "Directory /data/local/tmp/tmpfs/magireco does not exist." >&2
-    exit 1
+    echo "Directory /data/local/tmp/tmpfs/magireco does not exist."
+    exit_process 1
+  fi
+  if ! mkdir /data/local/tmp/tmpfs/magireco/lock 2> /dev/null;
+  then
+    if ((LOCK_CHECKED == 0));then
+      echo "Another process seems to be already running. Exit."
+      exit_process 1
+    fi
+  else
+    LOCK_CHECKED=1
   fi
   cd /data/local/tmp/tmpfs/magireco
   rm -f screen.dump
   screencap screen.dump
+  SCREENCAP_SIZE=0
+  [ -f screen.dump ] && SCREENCAP_SIZE=$(stat -c %s screen.dump)
+  if [ ! -f screen.dump ];
+  then
+    echo "capture_screen: screen.dump file does not exist."
+    exit_process 1
+  elif ((SCREENCAP_SIZE != 8294412));
+  then
+    echo "capture_screen: screen.dump file size does not match."
+    echo "Expected: 8294412"
+    echo "Actual:   ${SCREENCAP_SIZE}"
+    echo "Please adjust screen resolution to 1920x1080 pixel, 480 DPI"
+    exit_process 1
+  fi
 }
 
 get_pixel_color()
@@ -174,24 +233,24 @@ get_pixel_color()
   POS_Y=$2
   if (( POS_X >= 1920 ));
   then
-    echo "POS_X out of range." >&2
-    exit 1
+    echo "POS_X out of range."
+    exit_process 1
   fi
   if (( POS_Y >= 1080 ));
   then
-    echo "POS_Y out of range." >&2
-    exit 1
+    echo "POS_Y out of range."
+    exit_process 1
   fi
   OFFSET=$(( 16 + ( POS_Y * 1920 + POS_X ) * 4 ))
   if [ ! -f /data/local/tmp/tmpfs/magireco/screen.dump ]; then
-    echo "File screen.dump does not exist." >&2
-    exit 1
+    echo "File screen.dump does not exist."
+    exit_process 1
   fi
   RGB_HEX=$(dd if=screen.dump bs=1 count=3 skip=$OFFSET 2> /dev/null | xxd -p | tr abcdef ABCDEF)
   PX_R=$( { echo "obase=10; ibase=16";echo ${RGB_HEX:0:2}; } | bc )
   PX_G=$( { echo "obase=10; ibase=16";echo ${RGB_HEX:2:2}; } | bc )
   PX_B=$( { echo "obase=10; ibase=16";echo ${RGB_HEX:4:2}; } | bc )
-  echo "X=${POS_X} Y=${POS_Y} RGB_HEX=${RGB_HEX} R,G,B=${PX_R},${PX_G},${PX_B}" >&2
+  echo "X=${POS_X} Y=${POS_Y} RGB_HEX=${RGB_HEX} R,G,B=${PX_R},${PX_G},${PX_B}"
 }
 
 tap_screen_shifted()
@@ -207,9 +266,9 @@ tap_screen_shifted()
   TAP_Y_RAND=$(( TAP_Y - 8 + (RANDOM % 16) ))
   #sleep $((RANDOM/10000)).$(printf "%0.4d" $((RANDOM%10000)) )
   #sleep 0.$(printf "%0.4d" $((RANDOM%10000)) )
-  echo "TAP_X=${TAP_X} TAP_Y=${TAP_Y}" >&2
+  echo "TAP_X=${TAP_X} TAP_Y=${TAP_Y}"
   input tap $TAP_X_RAND $TAP_Y_RAND
-  echo "input tap ${TAP_X_RAND} ${TAP_Y_RAND}" >&2
+  echo "input tap ${TAP_X_RAND} ${TAP_Y_RAND}"
 }
 
 #rgb_dec_to_hex()
@@ -225,7 +284,7 @@ tap_screen_shifted()
 #  RGB_HEX_EXPECTED=${RGB_HEX_EXPECTED}$( { echo "obase=16; ibase=10";echo ${PX_G_EXPECTED}; } | bc )
 #  if (( PX_R_EXPECTED < 16 ));then RGB_HEX_EXPECTED="${RGB_HEX_EXPECTED}0"; fi
 #  RGB_HEX_EXPECTED=${RGB_HEX_EXPECTED}$( { echo "obase=16; ibase=10";echo ${PX_B_EXPECTED}; } | bc )
-#  echo "RGB_HEX_EXPECTED=${RGB_HEX_EXPECTED} R,G,B_EXPECTED=${PX_R_EXPECTED},${PX_G_EXPECTED},${PX_B_EXPECTED}" >&2
+#  echo "RGB_HEX_EXPECTED=${RGB_HEX_EXPECTED} R,G,B_EXPECTED=${PX_R_EXPECTED},${PX_G_EXPECTED},${PX_B_EXPECTED}"
 #}
 
 test_point()
@@ -255,16 +314,16 @@ do_test_point()
 
   get_pixel_color ${POS_X} ${POS_Y}
 
-  echo "R,G,B=${PX_R},${PX_G},${PX_B} R,G,B_EXPECTED=${PX_R_EXPECTED},${PX_G_EXPECTED},${PX_B_EXPECTED}" >&2
+  echo "R,G,B=${PX_R},${PX_G},${PX_B} R,G,B_EXPECTED=${PX_R_EXPECTED},${PX_G_EXPECTED},${PX_B_EXPECTED}"
 
   if (( RANGE == 0 ));
   then
     if (( PX_R == PX_R_EXPECTED )) && (( PX_G == PX_G_EXPECTED )) && (( PX_B == PX_B_EXPECTED ));
     then
-      echo "test_point matched." >&2
+      echo "test_point matched."
       return 0
     else
-      echo "test_point not matched." >&2
+      echo "test_point not matched."
       return 1
     fi
   elif (( RANGE > 0 ));
@@ -273,22 +332,22 @@ do_test_point()
        (( PX_G_EXPECTED - PX_G <= RANGE )) && (( PX_G - PX_G_EXPECTED <= RANGE )) && \
        (( PX_B_EXPECTED - PX_B <= RANGE )) && (( PX_B - PX_B_EXPECTED <= RANGE ));
     then
-      echo "test_point is within the RANGE=${RANGE}." >&2
+      echo "test_point is within the RANGE=${RANGE}."
       return 0
     else
-      echo "test_point is outside the RANGE=${RANGE}." >&2
+      echo "test_point is outside the RANGE=${RANGE}."
       return 1
     fi
   else
-    echo "test_point RANGE should be greater than zero." >&2
+    echo "test_point RANGE should be greater than zero."
     return 1
   fi
 #  rgb_dec_to_hex $3
 #  if [[ "${RGB_HEX}" == "${RGB_HEX_EXPECTED}" ]];then
-#    echo "test_point matched." >&2
+#    echo "test_point matched."
 #    return 0
 #  else
-#    echo "test_point not matched." >&2
+#    echo "test_point not matched."
 #    return 1
 #  fi
 }
@@ -296,7 +355,7 @@ do_test_point()
 get_battery_temperature()
 {
   BATT_TEMP=$(dumpsys battery | grep -i "temperature" | awk '{print $2}')
-  echo "BATT_TEMP=${BATT_TEMP}" >&2
+  echo "BATT_TEMP=${BATT_TEMP}"
 }
 
 prevent_overheat()
@@ -307,10 +366,10 @@ prevent_overheat()
     (( OVERHEAT )) || OVERHEAT=$(( BATT_TEMP >= 400 ))
     (( OVERHEAT )) || break
     (( BATT_TEMP < 376 )) && break
-    echo "Pause process for 15 sec." >&2
+    echo "Pause process for 15 sec."
     input keyevent HOME
     sleep 15
-    echo "Continue process." >&2
+    echo "Continue process."
     am start com.bilibili.madoka.bilibili/jp.f4samurai.AppActivity
     sleep 1
     STUCK_SINCE_UNIX=$(date +%s)
@@ -340,13 +399,13 @@ GREEN_AP_DRUG_CONSUMED=0
 RED_AP_DRUG_CONSUMED=0
 if [[ "$1" != "" ]];then AP_TARGET=$1; fi
 
+LOG_ROTATE_COUNTER=0
 while true; do
-  echo -ne "\n" >&2
-  echo -ne "CYCLE=${CYCLE} CONSUMED_AP=$((CYCLE*3))\nSTATUS=${STATUS}\n" >&2
-  echo -ne "Consumed AP drugs:\n  Green: ${GREEN_AP_DRUG_CONSUMED}\n  Red:   ${RED_AP_DRUG_CONSUMED}\n" >&2
+  STATS_STRING="\nCYCLE=${CYCLE} CONSUMED_AP=$((CYCLE*3))\nSTATUS=${STATUS}\n"
+  STATS_STRING="${STATS_STRING}Consumed AP drugs:\n  Green: ${GREEN_AP_DRUG_CONSUMED}\n  Red:   ${RED_AP_DRUG_CONSUMED}\n"
   if (( AP_TARGET > 0 ));
   then
-    echo -ne "AP_TARGET=${AP_TARGET} REMAINING_AP=$((AP_TARGET-CYCLE*3))\n" >&2
+    STATS_STRING="${STATS_STRING}AP_TARGET=${AP_TARGET} REMAINING_AP=$((AP_TARGET-CYCLE*3))\n"
   fi
 
   CURRENT_UNIX=$(date +%s)
@@ -354,7 +413,10 @@ while true; do
   ELAPSED_HR=$((ELAPSED_SEC_TOTAL / 3600))
   ELAPSED_MIN=$(((ELAPSED_SEC_TOTAL % 3600) / 60))
   ELAPSED_SEC=$((ELAPSED_SEC_TOTAL % 60))
-  echo -ne "Elapsed time: ${ELAPSED_HR}:${ELAPSED_MIN}:${ELAPSED_SEC}\n" >&2
+  STATS_STRING="${STATS_STRING}Elapsed time: ${ELAPSED_HR}:${ELAPSED_MIN}:${ELAPSED_SEC}\n"
+
+  #echo -ne "${STATS_STRING}" #echo to log
+  echo -ne "${STATS_STRING}" >&2 #echo to console
 
   if [[ "${STATUS}" == "${LAST_STATUS}" ]];
   then
@@ -452,9 +514,9 @@ while true; do
   then
     if test_point ${POINT_PLAYER_LV_UP_CAPTION_BROWN} 0 ${RGB_DEC_PLAYER_LV_UP_CAPTION_BROWN} 16 && \
        test_point ${POINT_PLAYER_LV_UP_LETTER_B_PURPLE} 0 ${RGB_DEC_PLAYER_LV_UP_LETTER_B_PURPLE} 16 && \
-       test_point ${POINT_PLAYER_LV_UP_BUTTON_TEXT_WHITE} 0 ${RGB_DEC_PLAYER_LV_UP_BUTTON_TEXT_WHITE} 12 ;
+       test_point ${POINT_PLAYER_LV_UP_BUTTON_TEXT_WHITE} 0 ${RGB_DEC_PLAYER_LV_UP_BUTTON_TEXT_WHITE} 30 ;
     then
-      echo "PLAYER LEVEL UP" >&2
+      echo "PLAYER LEVEL UP"
       STATUS="PLAYER_LEVEL_UP"
       continue
     fi
@@ -462,7 +524,7 @@ while true; do
        test_point ${POINT_LEVEL_UP_TOP_PINK} 0 ${RGB_DEC_LEVEL_UP_TOP_PINK} 12 && \
        test_point ${POINT_LEVEL_UP_BOTTOM_PINK} 0 ${RGB_DEC_LEVEL_UP_BOTTOM_PINK} 12 ;
     then
-      echo "LEVEL UP" >&2
+      echo "LEVEL UP"
       STATUS="LEVEL_UP"
       continue
     fi
@@ -501,7 +563,7 @@ while true; do
   then
     if test_point ${POINT_PLAYER_LV_UP_CAPTION_BROWN} 0 ${RGB_DEC_PLAYER_LV_UP_CAPTION_BROWN} 16 && \
        test_point ${POINT_PLAYER_LV_UP_LETTER_B_PURPLE} 0 ${RGB_DEC_PLAYER_LV_UP_LETTER_B_PURPLE} 16 && \
-       test_point ${POINT_PLAYER_LV_UP_BUTTON_TEXT_WHITE} 0 ${RGB_DEC_PLAYER_LV_UP_BUTTON_TEXT_WHITE} 12 ;
+       test_point ${POINT_PLAYER_LV_UP_BUTTON_TEXT_WHITE} 0 ${RGB_DEC_PLAYER_LV_UP_BUTTON_TEXT_WHITE} 30 ;
     then
       tap_screen_shifted ${POINT_PLAYER_LV_UP_BUTTON_TEXT_WHITE}
     elif test_point ${POINT_BATTLE_CLEAR_LEFT_BROWN} 0 ${RGB_DEC_BATTLE_CLEAR_LEFT_BROWN} 12 && \
@@ -526,9 +588,9 @@ while true; do
   then
     if test_point ${POINT_PLAYER_LV_UP_CAPTION_BROWN} 0 ${RGB_DEC_PLAYER_LV_UP_CAPTION_BROWN} 16 && \
        test_point ${POINT_PLAYER_LV_UP_LETTER_B_PURPLE} 0 ${RGB_DEC_PLAYER_LV_UP_LETTER_B_PURPLE} 16 && \
-       test_point ${POINT_PLAYER_LV_UP_BUTTON_TEXT_WHITE} 0 ${RGB_DEC_PLAYER_LV_UP_BUTTON_TEXT_WHITE} 12 ;
+       test_point ${POINT_PLAYER_LV_UP_BUTTON_TEXT_WHITE} 0 ${RGB_DEC_PLAYER_LV_UP_BUTTON_TEXT_WHITE} 30 ;
     then
-      echo "PLAYER LEVEL UP" >&2
+      echo "PLAYER LEVEL UP"
       STATUS="PLAYER_LEVEL_UP"
       continue
     fi
@@ -536,7 +598,7 @@ while true; do
        test_point ${POINT_LEVEL_UP_TOP_PINK} 0 ${RGB_DEC_LEVEL_UP_TOP_PINK} 12 && \
        test_point ${POINT_LEVEL_UP_BOTTOM_PINK} 0 ${RGB_DEC_LEVEL_UP_BOTTOM_PINK} 12 ;
     then
-      echo "LEVEL UP" >&2
+      echo "LEVEL UP"
       STATUS="LEVEL_UP"
       continue
     fi
@@ -577,9 +639,9 @@ while true; do
   then
     if test_point ${POINT_PLAYER_LV_UP_CAPTION_BROWN} 0 ${RGB_DEC_PLAYER_LV_UP_CAPTION_BROWN} 16 && \
        test_point ${POINT_PLAYER_LV_UP_LETTER_B_PURPLE} 0 ${RGB_DEC_PLAYER_LV_UP_LETTER_B_PURPLE} 16 && \
-       test_point ${POINT_PLAYER_LV_UP_BUTTON_TEXT_WHITE} 0 ${RGB_DEC_PLAYER_LV_UP_BUTTON_TEXT_WHITE} 12 ;
+       test_point ${POINT_PLAYER_LV_UP_BUTTON_TEXT_WHITE} 0 ${RGB_DEC_PLAYER_LV_UP_BUTTON_TEXT_WHITE} 30 ;
     then
-      echo "PLAYER LEVEL UP" >&2
+      echo "PLAYER LEVEL UP"
       STATUS="PLAYER_LEVEL_UP"
       continue
     fi
@@ -587,7 +649,7 @@ while true; do
        test_point ${POINT_LEVEL_UP_TOP_PINK} 0 ${RGB_DEC_LEVEL_UP_TOP_PINK} 12 && \
        test_point ${POINT_LEVEL_UP_BOTTOM_PINK} 0 ${RGB_DEC_LEVEL_UP_BOTTOM_PINK} 12 ;
     then
-      echo "LEVEL UP" >&2
+      echo "LEVEL UP"
       STATUS="LEVEL_UP"
       continue
     fi
@@ -643,12 +705,12 @@ while true; do
        test_point ${POINT_AP_REFILL_CAPTION_LETTER_P_WHITE} 0 ${RGB_DEC_AP_REFILL_CAPTION_LETTER_P_WHITE} 12 && \
        test_point ${POINT_AP_REFILL_CAPTION_BG_BROWN} 0 ${RGB_DEC_AP_REFILL_CAPTION_BG_BROWN} 16 ;
     then
-      if test_point ${POINT_GREEN_AP_DRUG_BUTTON_TEXT} 0 ${RGB_DEC_AP_DRUG_BUTTON_WHITE} 12 ;
+      if ! test_point ${POINT_GREEN_AP_DRUG_BUTTON_TEXT} 0 ${RGB_DEC_AP_DRUG_BUTTON_GREY_HALF} 100 ;
       then
         tap_screen_shifted ${POINT_GREEN_AP_DRUG_BUTTON_TEXT}
         STATUS="AP_REFILL_CONFIRM"
         TAKING_GREEN_AP_DRUG=1
-      elif test_point ${POINT_RED_AP_DRUG_BUTTON_TEXT} 0 ${RGB_DEC_AP_DRUG_BUTTON_WHITE} 12 ;
+      elif ! test_point ${POINT_RED_AP_DRUG_BUTTON_TEXT} 0 ${RGB_DEC_AP_DRUG_BUTTON_GREY_HALF} 100 ;
       then
         if ((READY_TO_TAKE_RED_AP_DRUG || ! AP_NO_WASTE));
         then
@@ -660,7 +722,7 @@ while true; do
           STATUS="CLOSE_WINDOW_WITHOUT_REFILLING_AP"
         fi
       else
-        echo "AP drug exhausted." >&2
+        echo "AP drug exhausted."
         input keyevent HOME
         break
       fi
@@ -728,9 +790,9 @@ while true; do
   then
     if test_point ${POINT_PLAYER_LV_UP_CAPTION_BROWN} 0 ${RGB_DEC_PLAYER_LV_UP_CAPTION_BROWN} 16 && \
        test_point ${POINT_PLAYER_LV_UP_LETTER_B_PURPLE} 0 ${RGB_DEC_PLAYER_LV_UP_LETTER_B_PURPLE} 16 && \
-       test_point ${POINT_PLAYER_LV_UP_BUTTON_TEXT_WHITE} 0 ${RGB_DEC_PLAYER_LV_UP_BUTTON_TEXT_WHITE} 12 ;
+       test_point ${POINT_PLAYER_LV_UP_BUTTON_TEXT_WHITE} 0 ${RGB_DEC_PLAYER_LV_UP_BUTTON_TEXT_WHITE} 30 ;
     then
-      echo "PLAYER LEVEL UP" >&2
+      echo "PLAYER LEVEL UP"
       STATUS="PLAYER_LEVEL_UP"
       continue
     fi
@@ -738,7 +800,7 @@ while true; do
        test_point ${POINT_LEVEL_UP_TOP_PINK} 0 ${RGB_DEC_LEVEL_UP_TOP_PINK} 12 && \
        test_point ${POINT_LEVEL_UP_BOTTOM_PINK} 0 ${RGB_DEC_LEVEL_UP_BOTTOM_PINK} 12 ;
     then
-      echo "LEVEL UP" >&2
+      echo "LEVEL UP"
       STATUS="LEVEL_UP"
       continue
     fi
@@ -762,4 +824,11 @@ while true; do
       STATUS="SUPPORT_CHARA_SEL"
     fi
   fi
-done
+done # | while read line; do
+#  [ -f /data/local/tmp/tmpfs/magireco/log1.txt ] && echo "${line}" >> /data/local/tmp/tmpfs/magireco/log1.txt
+#  echo "${line}" >&2
+#  LOG_ROTATE_COUNTER=$((LOG_ROTATE_COUNTER % 50 + 1))
+#  ((LOG_ROTATE_COUNTER == 1)) && rotate_log
+#done
+#
+#do_exit_process
