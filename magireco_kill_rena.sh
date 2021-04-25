@@ -1,10 +1,22 @@
-#!/system/bin/sh
+#!/data/local/tmp/rena_killer_bin/ash
 
 #Author: segfault
 #https://space.bilibili.com/15209122
 #bitcoin:bc1qfmale9twus34w9cntulmm9d23xy89gh6d7dx3e
 
 export PATH="/data/local/tmp/rena_killer_bin:${PATH}"
+
+ash_arith()
+{
+  return $@
+}
+
+inverse_ash_arith()
+{
+  ! ash_arith $@
+  return $?
+}
+
 
 AFF_TOP=1
 AFF_CENTER=2
@@ -123,6 +135,7 @@ RGB_DEC_AP_REFILL_CAPTION_BG_BROWN=164,123,72
 
 POINT_GREEN_AP_DRUG_BUTTON_TEXT=413,908,${AFF_CENTER}
 POINT_RED_AP_DRUG_BUTTON_TEXT=935,908,${AFF_CENTER}
+POINT_AP_REFILL_USE_MAGICAL_STONE_BUTTON_TEXT=1456,908,${AFF_CENTER}
 RGB_DEC_AP_DRUG_BUTTON_WHITE=255,255,255
 RGB_DEC_AP_DRUG_BUTTON_GREY=191,191,191
 RGB_DEC_AP_DRUG_BUTTON_GREY_HALF=100,100,100
@@ -131,28 +144,28 @@ RGB_DEC_AP_DRUG_BUTTON_GREY_HALF=100,100,100
 POINT_AP_REFILL_CONFIRM_CLOSE_WINDOW_CROSS_SIGN_BROWN=1555,232,${AFF_CENTER}
 RGB_DEC_AP_REFILL_CONFIRM_CLOSE_WINDOW_CROSS_SIGN_BROWN=195,163,104
 
-POINT_AP_REFILL_CONFIRM_CAPTION_TEXT_WHITE=884,309,${AFF_CENTER}
-RGB_DEC_AP_REFILL_CONFIRM_CAPTION_TEXT_WHITE=255,255,255
+POINT_AP_REFILL_CONFIRM_CLOSE_WINDOW_BUTTON_WHITE=1532,210,${AFF_CENTER}
+RGB_DEC_AP_REFILL_CONFIRM_CLOSE_WINDOW_BUTTON_WHITE=255,255,255
 
 POINT_AP_REFILL_CONFIRM_CAPTION_BG_BROWN=919,309,${AFF_CENTER}
 RGB_DEC_AP_REFILL_CONFIRM_CAPTION_BG_BROWN=164,123,72
 
-POINT_AP_REFILL_CONFIRM_BUTTON_TEXT_WHITE=1131,733,${AFF_CENTER}
-RGB_DEC_AP_REFILL_CONFIRM_BUTTON_TEXT_WHITE=255,255,255
+POINT_AP_REFILL_CONFIRM_BUTTON_PINK=1160,768,${AFF_CENTER}
+RGB_DEC_AP_REFILL_CONFIRM_BUTTON_PINK=255,79,152
 
 
 POINT_BATTLE_CLEAR_EXP_BAR_BROWN=821,479,${AFF_CENTER}
 RGB_DEC_BATTLE_CLEAR_EXP_BAR_BROWN=178,135,80
 
 
-POINT_RESTART_BUTTON_TEXT_WHITE=1749,1000,${AFF_BOTTOM}
-RGB_DEC_RESTART_BUTTON_TEXT_WHITE=255,255,255
+POINT_RESTART_BUTTON_LOWER_PINK=1740,1030,${AFF_BOTTOM}
+RGB_DEC_RESTART_BUTTON_LOWER_PINK=255,80,152
 
 POINT_RESTART_BUTTON_LEFT_YELLOW=1631,996,${AFF_BOTTOM}
 RGB_DEC_RESTART_BUTTON_LEFT_YELLOW=252,230,139
 
-POINT_RESTART_BUTTON_RIGHT_YELLOW=1853,996,${AFF_BOTTOM}
-RGB_DEC_RESTART_BUTTON_RIGHT_YELLOW=253,239,163
+POINT_RESTART_BUTTON_RIGHT_YELLOW=1849,1002,${AFF_BOTTOM}
+RGB_DEC_RESTART_BUTTON_RIGHT_YELLOW=252,232,138
 
 
 exit_process()
@@ -182,7 +195,7 @@ trap do_exit_process SIGHUP
 #  if [ -f /data/local/tmp/tmpfs/magireco/log1.txt ];
 #  then
 #    LOG_SIZE=$(stat -c %s /data/local/tmp/tmpfs/magireco/log1.txt)
-#    ((LOG_SIZE > 65536)) && mv /data/local/tmp/tmpfs/magireco/log1.txt /data/local/tmp/tmpfs/magireco/log0.txt
+#    inverse_ash_arith $((LOG_SIZE > 65536)) && mv /data/local/tmp/tmpfs/magireco/log1.txt /data/local/tmp/tmpfs/magireco/log0.txt
 #  fi
 #}
 
@@ -205,7 +218,7 @@ capture_screen()
   fi
   if ! mkdir /data/local/tmp/tmpfs/magireco/lock 2> /dev/null;
   then
-    if ((LOCK_CHECKED == 0));then
+    if inverse_ash_arith $((LOCK_CHECKED == 0));then
       echo "Another process seems to be already running. Exit."
       exit_process 1
     fi
@@ -222,21 +235,23 @@ capture_screen()
   fi
 }
 
+HEADER_LEN=16 # May be 16 or 12
+
 get_pixel_color()
 {
   POS_X=$1
   POS_Y=$2
-  if (( POS_X >= SCR_RES_WIDTH ));
+  if inverse_ash_arith $((POS_X >= SCR_RES_WIDTH));
   then
     echo "POS_X out of range."
     exit_process 1
   fi
-  if (( POS_Y >= SCR_RES_HEIGHT ));
+  if inverse_ash_arith $((POS_Y >= SCR_RES_HEIGHT));
   then
     echo "POS_Y out of range."
     exit_process 1
   fi
-  OFFSET=$(( 16 + ( POS_Y * SCR_RES_WIDTH + POS_X ) * 4 ))
+  OFFSET=$(( HEADER_LEN + ( POS_Y * SCR_RES_WIDTH + POS_X ) * 4))
   if [ ! -f /data/local/tmp/tmpfs/magireco/screen.dump ]; then
     echo "File screen.dump does not exist."
     exit_process 1
@@ -280,12 +295,18 @@ get_screen_resolution()
   SCR_RES_HEIGHT=$((SCR_RES_HEIGHT + 256 * SCR_RES_HEIGHT_))
   unset SCR_RES_HEIGHT_
   echo "SCR_RES_WIDTH=${SCR_RES_WIDTH} SCR_RES_HEIGHT=${SCR_RES_HEIGHT} SCR_RES_HEX=${SCR_RES_HEX}"
+  SCREENCAP_LEN=$(screencap | wc -c)
+  HEADER_LEN=$(( SCREENCAP_LEN - ( SCR_RES_WIDTH * SCR_RES_HEIGHT * 4 ) ))
+  if inverse_ash_arith $(( HEADER_LEN != 12 )) && inverse_ash_arith $(( HEADER_LEN != 16 )); then
+    echo "Unexpected screencap header length: ${HEADER_LEN}"
+    exit_process 1
+  fi
 }
 
 get_gcd() {
   A=$1
   B=$2
-  if ((A % B == 0));then GCD=${B}; return 0;fi
+  if inverse_ash_arith $((A % B == 0));then GCD=${B}; return 0;fi
   get_gcd ${B} $((A % B))
 }
 
@@ -299,29 +320,29 @@ get_conversion_mode()
   SCR_RATIO_Y=$((SCR_RES_HEIGHT / GCD))
   echo "SCR_RATIO_X=${SCR_RATIO_X} SCR_RATIO_Y=${SCR_RATIO_Y}"
 
-  if ((SCR_RATIO_X == REF_RATIO_X && SCR_RATIO_Y == REF_RATIO_Y)); then
+  if inverse_ash_arith $((SCR_RATIO_X == REF_RATIO_X && SCR_RATIO_Y == REF_RATIO_Y)); then
     CONVERSION_MODE="SIMPLE_SCALING"
     #reference width, equals to actual
     SCR_REF_WIDTH=$((SCR_RES_WIDTH))
     #reference height, equals to actual
     SCR_REF_HEIGHT=$((SCR_RES_HEIGHT))
   else
-    if ((SCR_RATIO_X * REF_RATIO_Y > REF_RATIO_X * SCR_RATIO_Y)); then
+    if inverse_ash_arith $((SCR_RATIO_X * REF_RATIO_Y > REF_RATIO_X * SCR_RATIO_Y)); then
       CONVERSION_MODE="VERTICAL_BLACK_BARS"
       #reference width, smaller than actual
       SCR_REF_WIDTH=$((SCR_RES_HEIGHT * REF_RES_WIDTH / REF_RES_HEIGHT))
       #reference height
       SCR_REF_HEIGHT=$((SCR_RES_HEIGHT))
       #black bar width, assuming ref screen is at the center
-      SCR_BBW=$(( (SCR_RES_WIDTH - SCR_REF_WIDTH) / 2))
-    elif ((SCR_RATIO_X * REF_RATIO_Y < REF_RATIO_X * SCR_RATIO_Y)); then
+      SCR_BBW=$(((SCR_RES_WIDTH - SCR_REF_WIDTH) / 2))
+    elif inverse_ash_arith $((SCR_RATIO_X * REF_RATIO_Y < REF_RATIO_X * SCR_RATIO_Y)); then
       CONVERSION_MODE="ENLARGED_VERTICAL_SPACE"
       #reference width
       SCR_REF_WIDTH=$((SCR_RES_WIDTH))
       #reference height, smaller than actual
       SCR_REF_HEIGHT=$((SCR_RES_WIDTH * REF_RES_HEIGHT / REF_RES_WIDTH))
       #height gap, assuming ref screen is at the center
-      SCR_HGAP=$(( (SCR_RES_HEIGHT - SCR_REF_HEIGHT) / 2))
+      SCR_HGAP=$(((SCR_RES_HEIGHT - SCR_REF_HEIGHT) / 2))
     else
       echo "Unexpected error."
       exit_process 1
@@ -337,7 +358,7 @@ convert_coords()
 
   echo "convert_coords: REF_X=${REF_X} REF_Y=${REF_Y} AFFINITY=${AFFINITY}"
 
-  if ((SCR_RES_WIDTH == 0)) && ((SCR_RES_HEIGHT == 0));then
+  if inverse_ash_arith $((SCR_RES_WIDTH == 0)) && inverse_ash_arith $((SCR_RES_HEIGHT == 0));then
     get_conversion_mode
   fi
 
@@ -350,12 +371,12 @@ convert_coords()
     ACTUAL_X=$((ACTUAL_X + SCR_BBW))
     echo "CONVERSION_MODE=${CONVERSION_MODE} SCR_BBW=${SCR_BBW}"
   elif [[ "${CONVERSION_MODE}" == "ENLARGED_VERTICAL_SPACE" ]]; then
-    if ((AFFINITY == AFF_TOP)); then
+    if inverse_ash_arith $((AFFINITY == AFF_TOP)); then
       echo "CONVERSION_MODE=${CONVERSION_MODE} AFFINITY=${AFFINITY}(AFF_TOP)"
-    elif ((AFFINITY == AFF_CENTER)); then
+    elif inverse_ash_arith $((AFFINITY == AFF_CENTER)); then
       ACTUAL_Y=$((ACTUAL_Y + SCR_HGAP))
       echo "CONVERSION_MODE=${CONVERSION_MODE} AFFINITY=${AFFINITY}(AFF_CENTER) SCR_HGAP=${SCR_HGAP}"
-    elif ((AFFINITY == AFF_BOTTOM)); then
+    elif inverse_ash_arith $((AFFINITY == AFF_BOTTOM)); then
       ACTUAL_Y=$((ACTUAL_Y + SCR_RES_HEIGHT - SCR_REF_HEIGHT))
       echo "CONVERSION_MODE=${CONVERSION_MODE} AFFINITY=${AFFINITY}(AFF_BOTTOM) SCR_RES_HEIGHT-SCR_REF_HEIGHT=$((SCR_RES_HEIGHT - SCR_REF_HEIGHT))"
     else
@@ -380,8 +401,8 @@ tap_screen_shifted()
   convert_coords ${TAP_X} ${TAP_Y} ${TAP_AFFINITY}
   TAP_X=${ACTUAL_X}
   TAP_Y=${ACTUAL_Y}
-  TAP_X_RAND=$(( TAP_X - 8 + (RANDOM % 16) ))
-  TAP_Y_RAND=$(( TAP_Y - 8 + (RANDOM % 16) ))
+  TAP_X_RAND=$((TAP_X - 8 + (RANDOM % 16)))
+  TAP_Y_RAND=$((TAP_Y - 8 + (RANDOM % 16)))
   #sleep $((RANDOM/10000)).$(printf "%0.4d" $((RANDOM%10000)) )
   #sleep 0.$(printf "%0.4d" $((RANDOM%10000)) )
   echo "TAP_X=${TAP_X} TAP_Y=${TAP_Y}"
@@ -396,11 +417,11 @@ tap_screen_shifted()
 #  PX_G_EXPECTED=$(echo ${RGB_DEC_EXPECTED} | awk '{print $2}')
 #  PX_B_EXPECTED=$(echo ${RGB_DEC_EXPECTED} | awk '{print $3}')
 #  RGB_HEX_EXPECTED=""
-#  if (( PX_R_EXPECTED < 16 ));then RGB_HEX_EXPECTED="${RGB_HEX_EXPECTED}0"; fi
+#  if inverse_ash_arith $((PX_R_EXPECTED < 16));then RGB_HEX_EXPECTED="${RGB_HEX_EXPECTED}0"; fi
 #  RGB_HEX_EXPECTED=${RGB_HEX_EXPECTED}$( { echo "obase=16; ibase=10";echo ${PX_R_EXPECTED}; } | bc )
-#  if (( PX_R_EXPECTED < 16 ));then RGB_HEX_EXPECTED="${RGB_HEX_EXPECTED}0"; fi
+#  if inverse_ash_arith $((PX_R_EXPECTED < 16));then RGB_HEX_EXPECTED="${RGB_HEX_EXPECTED}0"; fi
 #  RGB_HEX_EXPECTED=${RGB_HEX_EXPECTED}$( { echo "obase=16; ibase=10";echo ${PX_G_EXPECTED}; } | bc )
-#  if (( PX_R_EXPECTED < 16 ));then RGB_HEX_EXPECTED="${RGB_HEX_EXPECTED}0"; fi
+#  if inverse_ash_arith $((PX_R_EXPECTED < 16));then RGB_HEX_EXPECTED="${RGB_HEX_EXPECTED}0"; fi
 #  RGB_HEX_EXPECTED=${RGB_HEX_EXPECTED}$( { echo "obase=16; ibase=10";echo ${PX_B_EXPECTED}; } | bc )
 #  echo "RGB_HEX_EXPECTED=${RGB_HEX_EXPECTED} R,G,B_EXPECTED=${PX_R_EXPECTED},${PX_G_EXPECTED},${PX_B_EXPECTED}"
 #}
@@ -436,9 +457,9 @@ do_test_point()
 
   echo "R,G,B=${PX_R},${PX_G},${PX_B} R,G,B_EXPECTED=${PX_R_EXPECTED},${PX_G_EXPECTED},${PX_B_EXPECTED}"
 
-  if (( RANGE == 0 ));
+  if inverse_ash_arith $((RANGE == 0));
   then
-    if (( PX_R == PX_R_EXPECTED )) && (( PX_G == PX_G_EXPECTED )) && (( PX_B == PX_B_EXPECTED ));
+    if inverse_ash_arith $((PX_R == PX_R_EXPECTED)) && inverse_ash_arith $((PX_G == PX_G_EXPECTED)) && inverse_ash_arith $((PX_B == PX_B_EXPECTED));
     then
       echo "test_point matched."
       return 0
@@ -446,11 +467,11 @@ do_test_point()
       echo "test_point not matched."
       return 1
     fi
-  elif (( RANGE > 0 ));
+  elif inverse_ash_arith $((RANGE > 0));
   then
-    if (( PX_R_EXPECTED - PX_R <= RANGE )) && (( PX_R - PX_R_EXPECTED <= RANGE )) && \
-       (( PX_G_EXPECTED - PX_G <= RANGE )) && (( PX_G - PX_G_EXPECTED <= RANGE )) && \
-       (( PX_B_EXPECTED - PX_B <= RANGE )) && (( PX_B - PX_B_EXPECTED <= RANGE ));
+    if inverse_ash_arith $((PX_R_EXPECTED - PX_R <= RANGE)) && inverse_ash_arith $((PX_R - PX_R_EXPECTED <= RANGE)) && \
+       inverse_ash_arith $((PX_G_EXPECTED - PX_G <= RANGE)) && inverse_ash_arith $((PX_G - PX_G_EXPECTED <= RANGE)) && \
+       inverse_ash_arith $((PX_B_EXPECTED - PX_B <= RANGE)) && inverse_ash_arith $((PX_B - PX_B_EXPECTED <= RANGE));
     then
       echo "test_point is within the RANGE=${RANGE}."
       return 0
@@ -483,9 +504,9 @@ prevent_overheat()
   OVERHEAT=0
   while true; do
     get_battery_temperature
-    (( OVERHEAT )) || OVERHEAT=$(( BATT_TEMP >= 400 ))
-    (( OVERHEAT )) || break
-    (( BATT_TEMP < 376 )) && break
+    inverse_ash_arith $((OVERHEAT)) || OVERHEAT=$((BATT_TEMP >= 400))
+    inverse_ash_arith $((OVERHEAT)) || break
+    inverse_ash_arith $((BATT_TEMP < 376)) && break
     echo "Pause process for 15 sec."
     input keyevent HOME
     sleep 15
@@ -505,27 +526,68 @@ CYCLE=0
 START_SINCE_UNIX=$(date +%s)
 STUCK_SINCE_UNIX=${START_SINCE_UNIX}
 
-if [[ "${AP_NO_WASTE}" == "true" ]] || [[ "${AP_NO_WASTE}" == "1" ]];
-then
-  AP_NO_WASTE=1
-else
-  AP_NO_WASTE=0
-fi
-READY_TO_TAKE_RED_AP_DRUG=0
+READY_TO_TAKE_RED_OR_MAGICAL_STONE_AP_DRUG=0
 
 TAKING_GREEN_AP_DRUG=0
 TAKING_RED_AP_DRUG=0
+TAKING_MAGICAL_STONE_AP_DRUG=0
 GREEN_AP_DRUG_CONSUMED=0
 RED_AP_DRUG_CONSUMED=0
-if [[ "$1" != "" ]];then AP_TARGET=$1; fi
+MAGICAL_STONE_AP_DRUG_CONSUMED=0
+
+AP_TARGET=0
+MAX_GREEN_AP_DRUG=0
+MAX_RED_AP_DRUG=0
+MAX_MAGICAL_STONE_AP_DRUG=0
+AP_NO_WASTE=0
+for ARG in $@; do
+  for VAR_NAME in AP_TARGET MAX_GREEN_AP_DRUG MAX_RED_AP_DRUG MAX_MAGICAL_STONE_AP_DRUG AP_NO_WASTE; do
+    if [[ "${ARG}" == "${VAR_NAME}="* ]];then
+      ARG_LEN=${#ARG}
+      VAR_NAME_LEN=${#VAR_NAME}
+      inverse_ash_arith $((VAR_NAME_LEN++))
+      if inverse_ash_arith $((ARG_LEN > VAR_NAME_LEN));then
+        export ${VAR_NAME}=${ARG:${VAR_NAME_LEN}}
+      fi
+    fi
+  done
+done
+unset ARG
+unset ARG_LEN
+unset VAR_NAME
+unset VAR_NAME_LEN
 
 LOG_ROTATE_COUNTER=0
 while true; do
   STATS_STRING="\nCYCLE=${CYCLE} CONSUMED_AP=$((CYCLE*3))\nSTATUS=${STATUS}\n"
-  STATS_STRING="${STATS_STRING}Consumed AP drugs:\n  Green: ${GREEN_AP_DRUG_CONSUMED}\n  Red:   ${RED_AP_DRUG_CONSUMED}\n"
-  if (( AP_TARGET > 0 ));
+  STATS_STRING="${STATS_STRING}AP drug stats:\n"
+  STATS_STRING="${STATS_STRING}  Green:\n"
+  if inverse_ash_arith $((MAX_GREEN_AP_DRUG > 0));then
+    STATS_STRING="${STATS_STRING}    Consumed:                ${GREEN_AP_DRUG_CONSUMED}\n"
+    STATS_STRING="${STATS_STRING}    Target Max:              ${MAX_GREEN_AP_DRUG}\n"
+    STATS_STRING="${STATS_STRING}    Remaining num to target: $((MAX_GREEN_AP_DRUG - GREEN_AP_DRUG_CONSUMED))\n"
+  else
+    STATS_STRING="${STATS_STRING}    Not using\n"
+  fi
+  STATS_STRING="${STATS_STRING}  Red:\n"
+  if inverse_ash_arith $((MAX_RED_AP_DRUG > 0));then
+    STATS_STRING="${STATS_STRING}    Consumed:                ${RED_AP_DRUG_CONSUMED}\n"
+    STATS_STRING="${STATS_STRING}    Target Max:              ${MAX_RED_AP_DRUG}\n"
+    STATS_STRING="${STATS_STRING}    Remaining num to target: $((MAX_RED_AP_DRUG - RED_AP_DRUG_CONSUMED))\n"
+  else
+    STATS_STRING="${STATS_STRING}    Not using\n"
+  fi
+  STATS_STRING="${STATS_STRING}  Magical stone:\n"
+  if inverse_ash_arith $((MAX_MAGICAL_STONE_AP_DRUG > 0));then
+    STATS_STRING="${STATS_STRING}    Consumed:                ${MAGICAL_STONE_AP_DRUG_CONSUMED}\n"
+    STATS_STRING="${STATS_STRING}    Target Max:              ${MAX_MAGICAL_STONE_AP_DRUG}\n"
+    STATS_STRING="${STATS_STRING}    Remaining num to target: $((MAX_MAGICAL_STONE_AP_DRUG - MAGICAL_STONE_AP_DRUG_CONSUMED))\n"
+  else
+    STATS_STRING="${STATS_STRING}    Not using\n"
+  fi
+  if inverse_ash_arith $((AP_TARGET > 0));
   then
-    STATS_STRING="${STATS_STRING}AP_TARGET=${AP_TARGET} REMAINING_AP=$((AP_TARGET-CYCLE*3))\n"
+    STATS_STRING="${STATS_STRING}AP_TARGET=${AP_TARGET} REMAINING_AP_TO_TARGET=$((AP_TARGET-CYCLE*3))\n"
   fi
 
   CURRENT_UNIX=$(date +%s)
@@ -540,8 +602,8 @@ while true; do
 
   if [[ "${STATUS}" == "${LAST_STATUS}" ]];
   then
-    ((STUCK_COUNT++))
-    if (( CURRENT_UNIX - STUCK_SINCE_UNIX > 900 ));
+    inverse_ash_arith $((STUCK_COUNT++))
+    if inverse_ash_arith $((CURRENT_UNIX - STUCK_SINCE_UNIX > 900));
     then
       input keyevent HOME
       break
@@ -600,7 +662,7 @@ while true; do
     fi
   elif [[ "${STATUS}" == "WAIT_FOR_CONFIRM_START" ]];
   then
-    if ((CYCLE % 3 == 1));
+    if inverse_ash_arith $((CYCLE % 3 == 1));
     then
       prevent_overheat
     fi
@@ -617,11 +679,11 @@ while true; do
        test_point ${POINT_START_BUTTON_RIGHT_EDGE_PINK} 0 ${RGB_DEC_START_BUTTON_RIGHT_EDGE_PINK} 12 && \
        test_point ${POINT_START_BUTTON_CENTER_WHITE} 0 ${RGB_DEC_START_BUTTON_CENTER_WHITE} 12 ;
     then
-      ((CONFIRM_BUTTON_SHOWED++))
-      if ((CONFIRM_BUTTON_SHOWED==1)) || ((CONFIRM_BUTTON_SHOWED>=5));
+      inverse_ash_arith $((CONFIRM_BUTTON_SHOWED++))
+      if inverse_ash_arith $((CONFIRM_BUTTON_SHOWED==1)) || inverse_ash_arith $((CONFIRM_BUTTON_SHOWED>=5));
       then
         tap_screen_shifted ${POINT_START_BUTTON_CENTER_WHITE}
-        if ((CONFIRM_BUTTON_SHOWED>=5));then
+        if inverse_ash_arith $((CONFIRM_BUTTON_SHOWED>=5));then
           CONFIRM_BUTTON_SHOWED=0
         fi
       else
@@ -667,7 +729,7 @@ while true; do
          test_point ${POINT_BATTLE_CLEAR_CENTER_WHITE} 0 ${RGB_DEC_BATTLE_CLEAR_CENTER_WHITE} 12 && \
          test_point ${POINT_BATTLE_CLEAR_CENTER_BROWN} 0 ${RGB_DEC_BATTLE_CLEAR_CENTER_BROWN} 12 ;
     then
-      if test_point ${POINT_RESTART_BUTTON_TEXT_WHITE} 0 ${RGB_DEC_RESTART_BUTTON_TEXT_WHITE} 12 && \
+      if test_point ${POINT_RESTART_BUTTON_LOWER_PINK} 0 ${RGB_DEC_RESTART_BUTTON_LOWER_PINK} 12 && \
          test_point ${POINT_RESTART_BUTTON_LEFT_YELLOW} 0 ${RGB_DEC_RESTART_BUTTON_LEFT_YELLOW} 12 && \
          test_point ${POINT_RESTART_BUTTON_RIGHT_YELLOW} 0 ${RGB_DEC_RESTART_BUTTON_RIGHT_YELLOW} 12 ;
       then
@@ -690,7 +752,7 @@ while true; do
          test_point ${POINT_BATTLE_CLEAR_CENTER_WHITE} 0 ${RGB_DEC_BATTLE_CLEAR_CENTER_WHITE} 12 && \
          test_point ${POINT_BATTLE_CLEAR_CENTER_BROWN} 0 ${RGB_DEC_BATTLE_CLEAR_CENTER_BROWN} 12 ;
     then
-      if test_point ${POINT_RESTART_BUTTON_TEXT_WHITE} 0 ${RGB_DEC_RESTART_BUTTON_TEXT_WHITE} 12 && \
+      if test_point ${POINT_RESTART_BUTTON_LOWER_PINK} 0 ${RGB_DEC_RESTART_BUTTON_LOWER_PINK} 12 && \
          test_point ${POINT_RESTART_BUTTON_LEFT_YELLOW} 0 ${RGB_DEC_RESTART_BUTTON_LEFT_YELLOW} 12 && \
          test_point ${POINT_RESTART_BUTTON_RIGHT_YELLOW} 0 ${RGB_DEC_RESTART_BUTTON_RIGHT_YELLOW} 12 ;
       then
@@ -726,13 +788,13 @@ while true; do
        test_point ${POINT_BATTLE_CLEAR_CENTER_WHITE} 0 ${RGB_DEC_BATTLE_CLEAR_CENTER_WHITE} 12 && \
        test_point ${POINT_BATTLE_CLEAR_CENTER_BROWN} 0 ${RGB_DEC_BATTLE_CLEAR_CENTER_BROWN} 12 ;
     then
-      if (( AP_TARGET > 0 ));then
-        if (( CYCLE * 3 >= AP_TARGET ));then
+      if inverse_ash_arith $((AP_TARGET > 0));then
+        if inverse_ash_arith $((CYCLE * 3 >= AP_TARGET));then
           input keyevent HOME
           break
         fi
       fi
-      if test_point ${POINT_RESTART_BUTTON_TEXT_WHITE} 0 ${RGB_DEC_RESTART_BUTTON_TEXT_WHITE} 12 && \
+      if test_point ${POINT_RESTART_BUTTON_LOWER_PINK} 0 ${RGB_DEC_RESTART_BUTTON_LOWER_PINK} 12 && \
          test_point ${POINT_RESTART_BUTTON_LEFT_YELLOW} 0 ${RGB_DEC_RESTART_BUTTON_LEFT_YELLOW} 12 && \
          test_point ${POINT_RESTART_BUTTON_RIGHT_YELLOW} 0 ${RGB_DEC_RESTART_BUTTON_RIGHT_YELLOW} 12 ;
       then
@@ -741,8 +803,8 @@ while true; do
       else
         if test_point ${POINT_BATTLE_CLEAR_EXP_BAR_BROWN} 0 ${RGB_DEC_BATTLE_CLEAR_EXP_BAR_BROWN} 16 ;
         then
-          ((BATTLE_CLEAR_EXP_BAR_SHOWED++))
-          if ((BATTLE_CLEAR_EXP_BAR_SHOWED%20==1));
+          inverse_ash_arith $((BATTLE_CLEAR_EXP_BAR_SHOWED++))
+          if inverse_ash_arith $((BATTLE_CLEAR_EXP_BAR_SHOWED%20==1));
           then
             tap_screen_shifted 33 $((REF_RES_HEIGHT-34)) ${AFF_BOTTOM}
           else
@@ -773,15 +835,15 @@ while true; do
       STATUS="LEVEL_UP"
       continue
     fi
-    if test_point ${POINT_RESTART_BUTTON_TEXT_WHITE} 0 ${RGB_DEC_RESTART_BUTTON_TEXT_WHITE} 12 && \
+    if test_point ${POINT_RESTART_BUTTON_LOWER_PINK} 0 ${RGB_DEC_RESTART_BUTTON_LOWER_PINK} 12 && \
        test_point ${POINT_RESTART_BUTTON_LEFT_YELLOW} 0 ${RGB_DEC_RESTART_BUTTON_LEFT_YELLOW} 12 && \
        test_point ${POINT_RESTART_BUTTON_RIGHT_YELLOW} 0 ${RGB_DEC_RESTART_BUTTON_RIGHT_YELLOW} 12 ;
     then
       STATUS="CLICK_RESTART"
       RESTART_BUTTON_SHOWED=0
     else
-      ((RESTART_BUTTON_MISSING++))
-      if ((RESTART_BUTTON_MISSING >= 3));
+      inverse_ash_arith $((RESTART_BUTTON_MISSING++))
+      if inverse_ash_arith $((RESTART_BUTTON_MISSING >= 3));
       then
         STATUS="AP_EXHAUSTION"
         tap_screen_shifted 33 $((REF_RES_HEIGHT-34)) ${AFF_BOTTOM}
@@ -817,7 +879,7 @@ while true; do
       #Auto-refilled to at least 3 AP just now, consume it immediately right after refilling AP
       tap_screen_shifted ${POINT_AP_REFILL_BUTTON_WHITE}
       STATUS="AP_REFILL"
-      READY_TO_TAKE_RED_AP_DRUG=1
+      READY_TO_TAKE_RED_OR_MAGICAL_STONE_AP_DRUG=1
     fi
   elif [[ "${STATUS}" == "AP_REFILL" ]];
   then
@@ -825,24 +887,35 @@ while true; do
        test_point ${POINT_AP_REFILL_CAPTION_LETTER_P_WHITE} 0 ${RGB_DEC_AP_REFILL_CAPTION_LETTER_P_WHITE} 12 && \
        test_point ${POINT_AP_REFILL_CAPTION_BG_BROWN} 0 ${RGB_DEC_AP_REFILL_CAPTION_BG_BROWN} 16 ;
     then
-      if ! test_point ${POINT_GREEN_AP_DRUG_BUTTON_TEXT} 0 ${RGB_DEC_AP_DRUG_BUTTON_GREY_HALF} 100 ;
+      if inverse_ash_arith $((GREEN_AP_DRUG_CONSUMED < MAX_GREEN_AP_DRUG)) && ! test_point ${POINT_GREEN_AP_DRUG_BUTTON_TEXT} 0 ${RGB_DEC_AP_DRUG_BUTTON_GREY_HALF} 100 ;
       then
         tap_screen_shifted ${POINT_GREEN_AP_DRUG_BUTTON_TEXT}
         STATUS="AP_REFILL_CONFIRM"
         TAKING_GREEN_AP_DRUG=1
-      elif ! test_point ${POINT_RED_AP_DRUG_BUTTON_TEXT} 0 ${RGB_DEC_AP_DRUG_BUTTON_GREY_HALF} 100 ;
+      elif inverse_ash_arith $((RED_AP_DRUG_CONSUMED < MAX_RED_AP_DRUG)) && ! test_point ${POINT_RED_AP_DRUG_BUTTON_TEXT} 0 ${RGB_DEC_AP_DRUG_BUTTON_GREY_HALF} 100 ;
       then
-        if ((READY_TO_TAKE_RED_AP_DRUG || ! AP_NO_WASTE));
+        if inverse_ash_arith $((READY_TO_TAKE_RED_OR_MAGICAL_STONE_AP_DRUG || ! AP_NO_WASTE));
         then
           tap_screen_shifted ${POINT_RED_AP_DRUG_BUTTON_TEXT}
           STATUS="AP_REFILL_CONFIRM"
           TAKING_RED_AP_DRUG=1
-          READY_TO_TAKE_RED_AP_DRUG=0
+          READY_TO_TAKE_RED_OR_MAGICAL_STONE_AP_DRUG=0
+        else
+          STATUS="CLOSE_WINDOW_WITHOUT_REFILLING_AP"
+        fi
+      elif inverse_ash_arith $((MAGICAL_STONE_AP_DRUG_CONSUMED < MAX_MAGICAL_STONE_AP_DRUG)) && ! test_point ${POINT_AP_REFILL_USE_MAGICAL_STONE_BUTTON_TEXT} 0 ${RGB_DEC_AP_DRUG_BUTTON_GREY_HALF} 100 ;
+      then
+        if inverse_ash_arith $((READY_TO_TAKE_RED_OR_MAGICAL_STONE_AP_DRUG || ! AP_NO_WASTE));
+        then
+          tap_screen_shifted ${POINT_AP_REFILL_USE_MAGICAL_STONE_BUTTON_TEXT}
+          STATUS="AP_REFILL_CONFIRM"
+          TAKING_MAGICAL_STONE_AP_DRUG=1
+          READY_TO_TAKE_RED_OR_MAGICAL_STONE_AP_DRUG=0
         else
           STATUS="CLOSE_WINDOW_WITHOUT_REFILLING_AP"
         fi
       else
-        echo "AP drug exhausted."
+        echo "AP drug (and magical stone, if used) exhausted."
         input keyevent HOME
         break
       fi
@@ -850,20 +923,24 @@ while true; do
   elif [[ "${STATUS}" == "AP_REFILL_CONFIRM" ]];
   then
     if test_point ${POINT_AP_REFILL_CONFIRM_CLOSE_WINDOW_CROSS_SIGN_BROWN} 0 ${RGB_DEC_AP_REFILL_CONFIRM_CLOSE_WINDOW_CROSS_SIGN_BROWN} 16 && \
-       test_point ${POINT_AP_REFILL_CONFIRM_CAPTION_TEXT_WHITE} 0 ${RGB_DEC_AP_REFILL_CONFIRM_CAPTION_TEXT_WHITE} 12 && \
+       test_point ${POINT_AP_REFILL_CONFIRM_CLOSE_WINDOW_BUTTON_WHITE} 0 ${RGB_DEC_AP_REFILL_CONFIRM_CLOSE_WINDOW_BUTTON_WHITE} 12 && \
        test_point ${POINT_AP_REFILL_CONFIRM_CAPTION_BG_BROWN} 0 ${RGB_DEC_AP_REFILL_CONFIRM_CAPTION_BG_BROWN} 16 && \
-       test_point ${POINT_AP_REFILL_CONFIRM_BUTTON_TEXT_WHITE} 0 ${RGB_DEC_AP_REFILL_CONFIRM_BUTTON_TEXT_WHITE} 12 ;
+       test_point ${POINT_AP_REFILL_CONFIRM_BUTTON_PINK} 0 ${RGB_DEC_AP_REFILL_CONFIRM_BUTTON_PINK} 12 ;
     then
-      tap_screen_shifted ${POINT_AP_REFILL_CONFIRM_BUTTON_TEXT_WHITE}
+      tap_screen_shifted ${POINT_AP_REFILL_CONFIRM_BUTTON_PINK}
       STATUS="AP_REFILLED"
-      if ((TAKING_GREEN_AP_DRUG != 0));
+      if inverse_ash_arith $((TAKING_GREEN_AP_DRUG != 0));
       then
-        ((GREEN_AP_DRUG_CONSUMED++))
+        inverse_ash_arith $((GREEN_AP_DRUG_CONSUMED++))
         TAKING_GREEN_AP_DRUG=0
-      elif ((TAKING_RED_AP_DRUG != 0));
+      elif inverse_ash_arith $((TAKING_RED_AP_DRUG != 0));
       then
-        ((RED_AP_DRUG_CONSUMED++))
+        inverse_ash_arith $((RED_AP_DRUG_CONSUMED++))
         TAKING_RED_AP_DRUG=0
+      elif inverse_ash_arith $((TAKING_MAGICAL_STONE_AP_DRUG != 0));
+      then
+        inverse_ash_arith $((MAGICAL_STONE_AP_DRUG_CONSUMED++))
+        TAKING_MAGICAL_STONE_AP_DRUG=0
       fi
     fi
   elif [[ "${STATUS}" == "AP_REFILLED" ]] || [[ "${STATUS}" == "CLOSE_WINDOW_WITHOUT_REFILLING_AP" ]];
@@ -924,15 +1001,15 @@ while true; do
       STATUS="LEVEL_UP"
       continue
     fi
-    if test_point ${POINT_RESTART_BUTTON_TEXT_WHITE} 0 ${RGB_DEC_RESTART_BUTTON_TEXT_WHITE} 12 && \
+    if test_point ${POINT_RESTART_BUTTON_LOWER_PINK} 0 ${RGB_DEC_RESTART_BUTTON_LOWER_PINK} 12 && \
        test_point ${POINT_RESTART_BUTTON_LEFT_YELLOW} 0 ${RGB_DEC_RESTART_BUTTON_LEFT_YELLOW} 12 && \
        test_point ${POINT_RESTART_BUTTON_RIGHT_YELLOW} 0 ${RGB_DEC_RESTART_BUTTON_RIGHT_YELLOW} 12 ;
     then
-      ((RESTART_BUTTON_SHOWED++))
-      if ((RESTART_BUTTON_SHOWED==1)) || ((RESTART_BUTTON_SHOWED>=5));
+      inverse_ash_arith $((RESTART_BUTTON_SHOWED++))
+      if inverse_ash_arith $((RESTART_BUTTON_SHOWED==1)) || inverse_ash_arith $((RESTART_BUTTON_SHOWED>=5));
       then
-        tap_screen_shifted ${POINT_RESTART_BUTTON_TEXT_WHITE}
-        if ((RESTART_BUTTON_SHOWED>=5));
+        tap_screen_shifted ${POINT_RESTART_BUTTON_LOWER_PINK}
+        if inverse_ash_arith $((RESTART_BUTTON_SHOWED>=5));
         then
           RESTART_BUTTON_SHOWED=0
         fi
@@ -940,7 +1017,7 @@ while true; do
         sleep 0.3
       fi
     else
-      ((CYCLE++))
+      inverse_ash_arith $((CYCLE++))
       STATUS="SUPPORT_CHARA_SEL"
     fi
   fi
@@ -948,7 +1025,7 @@ done # | while read line; do
 #  [ -f /data/local/tmp/tmpfs/magireco/log1.txt ] && echo "${line}" >> /data/local/tmp/tmpfs/magireco/log1.txt
 #  echo "${line}" >&2
 #  LOG_ROTATE_COUNTER=$((LOG_ROTATE_COUNTER % 50 + 1))
-#  ((LOG_ROTATE_COUNTER == 1)) && rotate_log
+#  inverse_ash_arith $((LOG_ROTATE_COUNTER == 1)) && rotate_log
 #done
 #
 #do_exit_process
