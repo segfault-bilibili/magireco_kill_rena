@@ -543,16 +543,21 @@ MAX_GREEN_AP_DRUG=0
 MAX_RED_AP_DRUG=0
 MAX_MAGICAL_STONE_AP_DRUG=0
 AP_NO_WASTE=0
+echo "ARGS=$@"
 for ARG in $@; do
+  echo "ARG=${ARG}"
   for VAR_NAME in AP_TARGET MAX_GREEN_AP_DRUG MAX_RED_AP_DRUG MAX_MAGICAL_STONE_AP_DRUG AP_NO_WASTE; do
-    if [[ "${ARG}" == "${VAR_NAME}="* ]];then
+    echo "  VAR_NAME=${VAR_NAME}"
+    case "${ARG}" in "${VAR_NAME}="*)
+      echo "Found VAR_NAME=${VAR_NAME}"
       ARG_LEN=${#ARG}
       VAR_NAME_LEN=${#VAR_NAME}
       inverse_ash_arith $((VAR_NAME_LEN++))
       if inverse_ash_arith $((ARG_LEN > VAR_NAME_LEN));then
         export ${VAR_NAME}=${ARG:${VAR_NAME_LEN}}
+        echo "export ${VAR_NAME}=${ARG:${VAR_NAME_LEN}}"
       fi
-    fi
+    esac
   done
 done
 unset ARG
